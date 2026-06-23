@@ -1,6 +1,6 @@
-// src/pages/my/my.vue
-
 <script setup lang="ts">
+import {ref} from 'vue'
+import WaterProductGuess from '@/components/WaterProductGuess.vue';
 import { useMemberStore } from '@/stores';
 
 // 获取屏幕边界到安全区域距离
@@ -85,7 +85,7 @@ const memberStore = useMemberStore()
     </view>
     <!-- 猜你喜欢 -->
     <view class="guess">
-      <XtxGuess ref="guessRef" />
+      <WaterProductGuess ref="guessRef" />
     </view>
   </scroll-view>
 </template>

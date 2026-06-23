@@ -1,61 +1,64 @@
 <script setup lang="ts">
 import { postLoginWxMinAPI, postLoginWxMinSimpleAPI } from '@/services/login'
 import { useMemberStore } from '@/stores'
-import { LoginResult } from '@/types/member'
-import {onLoad} from '@dcloudio/uni-app'
+import type { LoginResult } from '@/types/member'
+import { onLoad } from '@dcloudio/uni-app'
 
 // 获取code登录凭证
 let code = ''
-onLoad(async()=>{
-    const res = await wx.login()
-    code = res.code
+onLoad(async () => {
+  // 替换为 uni.login，符合uni-app跨端规范
+  const res = await uni.login()
+  code = res.code
 })
 
 // 获取用户手机号码(企业做法)
-const onGetPhoneNumber:UniHelper.ButtonOnGetphonenumber = async(ev) =>{
+const onGetPhoneNumber: UniHelper.ButtonOnGetphonenumber = async (ev) => {
   const encryptedData = ev.detail!.encryptedData!
   const iv = ev.detail?.iv!
-  const res = await postLoginWxMinAPI({
-    code,
-    encryptedData,
-    iv
-  })
-  loginSuccess(res.result)
-}
-//模拟
-const onGetPhoneNumberSimple = async() => {
-  const res = await postLoginWxMinSimpleAPI('13298745612')
-  loginSuccess(res.result)
+  try {
+    const res = await postLoginWxMinAPI({
+      code,
+      encryptedData,
+      iv
+    })
+    loginSuccess(res.result)
+  } catch (e) {
+    uni.showToast({ icon: 'none', title: '登录失败，请重试' })
+  }
 }
 
-//登录成功
-const loginSuccess = (profile: LoginResult) =>{
-    //保存会员信息
+// 模拟快捷登录
+const onGetPhoneNumberSimple = async () => {
+  try {
+    const res = await postLoginWxMinSimpleAPI('13298745612')
+    loginSuccess(res.result)
+  } catch (e) {
+    uni.showToast({ icon: 'none', title: '登录失败，请重试' })
+  }
+}
+
+// 登录成功
+const loginSuccess = (profile: LoginResult) => {
+  // 保存会员信息
   const memberStore = useMemberStore()
   memberStore.setProfile(profile)
-  //成功提示
-  uni.showToast({icon:'success',title:'登录成功'})
+  // 成功提示
+  uni.showToast({ icon: 'success', title: '登录成功' })
   setTimeout(() => {
-    //页面跳转
-    uni.switchTab({url:'pages/index/index'})
-  },500)
+    // 修复：switchTab路径必须以 / 开头，否则跳转失效
+    uni.switchTab({ url: '/pages/index/index' })
+  }, 500)
 }
 </script>
-
 
 <template>
   <view class="viewport">
     <view class="logo">
-      <image
-        src="https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/logo_icon.png"
-      ></image>
+      <!-- 替换为本地静态资源，避免网络图片加载异常 -->
+      <image src="/static/logo.png"></image>
     </view>
     <view class="login">
-      <!-- 网页端表单登录 -->
-      <!-- <input class="input" type="text" placeholder="请输入用户名/手机号码" /> -->
-      <!-- <input class="input" type="text" password placeholder="请输入密码" /> -->
-      <!-- <button class="button phone">登录</button> -->
-
       <!-- 小程序端授权登录 -->
       <button class="button phone" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
         <text class="icon icon-phone"></text>
@@ -72,7 +75,7 @@ const loginSuccess = (profile: LoginResult) =>{
           </button>
         </view>
       </view>
-      <view class="tips">登录/注册即视为你同意《服务条款》和《小兔鲜儿隐私协议》</view>
+      <view class="tips">登录/注册即视为你同意《服务条款》和《隐私协议》</view>
     </view>
   </view>
 </template>

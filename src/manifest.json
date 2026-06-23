@@ -1,5 +1,5 @@
 {
-    "name" : "",
+    "name" : "uni-app-vue3-ts",
     "appid" : "",
     "description" : "",
     "versionName" : "1.0.0",
@@ -51,7 +51,7 @@
     /* 小程序特有相关 */
     "mp-weixin" : {
         //微信小程序ID
-        "appid" : "",
+        "appid" : "wxfc5b260172d573ac",
         "setting" : {
             "urlCheck" : false
         },
