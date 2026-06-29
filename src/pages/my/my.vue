@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {ref} from 'vue'
+import type { WaterProductGuessInstance } from '@/types/components';
 import WaterProductGuess from '@/components/WaterProductGuess.vue';
 import { useMemberStore } from '@/stores';
 
@@ -14,11 +15,19 @@ const orderTypes = [
 ]
 // 获取会员信息
 const memberStore = useMemberStore()
+//获取猜你喜欢组件实例
+const guessRef = ref<WaterProductGuessInstance>()
+
+//滚动触底
+const onScrolltolower = () => {
+  guessRef.value?.getMore()
+}
 
 </script>
 
+
 <template>
-  <scroll-view class="viewport" scroll-y enable-back-to-top>
+  <scroll-view @scrolltolower="onScrolltolower" class="viewport" scroll-y enable-back-to-top>
     <!-- 个人资料 -->
     <view class="profile" :style="{ paddingTop: safeAreaInsets!.top + 'px' }">
       <!-- 情况1：已登录 -->

@@ -4,13 +4,15 @@ import { useMemberStore } from '@/stores'
 import type { LoginResult } from '@/types/member'
 import { onLoad } from '@dcloudio/uni-app'
 
+// #ifdef MP-WEIXIN
 // 获取code登录凭证
 let code = ''
 onLoad(async () => {
   // 替换为 uni.login，符合uni-app跨端规范
-  const res = await uni.login()
+  const res = await wx.login()
   code = res.code
 })
+// #endif
 
 // 获取用户手机号码(企业做法)
 const onGetPhoneNumber: UniHelper.ButtonOnGetphonenumber = async (ev) => {
@@ -55,15 +57,25 @@ const loginSuccess = (profile: LoginResult) => {
 <template>
   <view class="viewport">
     <view class="logo">
-      <!-- 替换为本地静态资源，避免网络图片加载异常 -->
-      <image src="/static/logo.png"></image>
+      <image
+        src="https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/logo_icon.png"
+      ></image>
     </view>
     <view class="login">
+      <!-- 网页端表单登录 -->
+      <!-- #ifdef H5 -->
+      <input class="input" type="text" placeholder="请输入用户名/手机号码" />
+      <input class="input" type="text" password placeholder="请输入密码" />
+      <button class="button phone">登录</button>
+      <!-- #endif -->
+
       <!-- 小程序端授权登录 -->
+      <!-- #ifdef MP-WEIXIN -->
       <button class="button phone" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
         <text class="icon icon-phone"></text>
         手机号快捷登录
       </button>
+      <!-- #endif -->
       <view class="extra">
         <view class="caption">
           <text>其他登录方式</text>
@@ -75,7 +87,7 @@ const loginSuccess = (profile: LoginResult) => {
           </button>
         </view>
       </view>
-      <view class="tips">登录/注册即视为你同意《服务条款》和《隐私协议》</view>
+      <view class="tips">登录/注册即视为你同意《服务条款》和《小兔鲜儿隐私协议》</view>
     </view>
   </view>
 </template>
@@ -168,6 +180,9 @@ page {
       button {
         padding: 0;
         background-color: transparent;
+        &::after {
+          border: none;
+        }
       }
     }
 

@@ -22,11 +22,11 @@
 			}
 		},
 		{
-			"path": "pages/carts/carts",
+			"path": "pages/category/category",
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTextStyle": "white",
-				"navigationBarTitleText": "商品"
+				"navigationBarTitleText": "分类"
 			}
 		},
 		{
@@ -37,7 +37,7 @@
 				"navigationBarTitleText": "购物车"
 			}
 		},
-				{
+		{
 			"path": "pages/my/my",
 			"style": {
 				"navigationStyle": "custom",
@@ -50,7 +50,14 @@
 			"style": {
 				"navigationBarTitleText": "登录"
 			}
+		},
+				{
+			"path": "pages/hot/hot",
+			"style": {
+				"navigationBarTitleText": "热门推荐"
+			}
 		}
+
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
@@ -73,7 +80,7 @@
 			},
 			{
 				"text": "分类",
-				"pagePath": "pages/carts/carts",
+				"pagePath": "pages/category/category",
 				"iconPath": "static/tabs/category_default.png",
 				"selectedIconPath": "static/tabs/category_selected.png"
 			},
@@ -107,7 +114,21 @@
 				{
 					"path": "profile/profile",
 					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTextStyle": "white",
 						"navigationBarTitleText": "个人信息页"
+					}
+				},
+				{
+					"path": "address",
+					"style": {
+						"navigationBarTitleText": "地址管理"
+					}
+				},
+				{
+					"path": "address-form",
+					"style": {
+						"navigationBarTitleText": ""
 					}
 				}
 			]
