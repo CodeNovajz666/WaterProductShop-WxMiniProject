@@ -9,12 +9,12 @@ import { onLoad } from '@dcloudio/uni-app'
 let code = ''
 onLoad(async () => {
   // 替换为 uni.login，符合uni-app跨端规范
-  const res = await wx.login()
+  const res = await uni.login()
   code = res.code
 })
 // #endif
 
-// 获取用户手机号码(企业做法)
+// 获取用户手机号码-企业
 const onGetPhoneNumber: UniHelper.ButtonOnGetphonenumber = async (ev) => {
   const encryptedData = ev.detail!.encryptedData!
   const iv = ev.detail?.iv!
@@ -47,10 +47,10 @@ const loginSuccess = (profile: LoginResult) => {
   memberStore.setProfile(profile)
   // 成功提示
   uni.showToast({ icon: 'success', title: '登录成功' })
+  // 跳转首页（立即执行，延迟30ms确保toast显示）
   setTimeout(() => {
-    // 修复：switchTab路径必须以 / 开头，否则跳转失效
     uni.switchTab({ url: '/pages/index/index' })
-  }, 500)
+  }, 30)
 }
 </script>
 
@@ -58,7 +58,7 @@ const loginSuccess = (profile: LoginResult) => {
   <view class="viewport">
     <view class="logo">
       <image
-        src="https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/logo_icon.png"
+        src="/static/images/logo_icon.png"
       ></image>
     </view>
     <view class="login">
@@ -87,7 +87,7 @@ const loginSuccess = (profile: LoginResult) => {
           </button>
         </view>
       </view>
-      <view class="tips">登录/注册即视为你同意《服务条款》和《小兔鲜儿隐私协议》</view>
+      <view class="tips">登录/注册即视为你同意《服务条款》和《渔鲜汇隐私协议》</view>
     </view>
   </view>
 </template>

@@ -1,36 +1,39 @@
 <script setup lang="ts">
-import {ref} from 'vue'
-import type { WaterProductGuessInstance } from '@/types/components';
-import WaterProductGuess from '@/components/WaterProductGuess.vue';
-import { useMemberStore } from '@/stores';
+import { ref } from 'vue'
+import type { WaterProductGuessInstance } from '@/types/components'
+import WaterProductGuess from '@/components/WaterProductGuess.vue'
+import { useMemberStore } from '@/stores'
 
-// 获取屏幕边界到安全区域距离
 const { safeAreaInsets } = uni.getSystemInfoSync()
-// 订单选项
+
 const orderTypes = [
   { type: 1, text: '待付款', icon: 'icon-currency' },
   { type: 2, text: '待发货', icon: 'icon-gift' },
   { type: 3, text: '待收货', icon: 'icon-check' },
   { type: 4, text: '待评价', icon: 'icon-comment' },
 ]
-// 获取会员信息
+
+const menuItems = [
+  { id: 1, icon: 'icon-location', text: '收货地址', url: '/pagesMember/address/address' },
+  { id: 2, icon: 'icon-star', text: '我的收藏', url: '/pagesMember/favorites/favorites' },
+  { id: 3, icon: 'icon-help', text: '帮助中心', url: '/pagesMember/help/help' },
+]
+
 const memberStore = useMemberStore()
-//获取猜你喜欢组件实例
 const guessRef = ref<WaterProductGuessInstance>()
 
-//滚动触底
 const onScrolltolower = () => {
   guessRef.value?.getMore()
 }
 
+const onMenuItemTap = (url: string) => {
+  uni.navigateTo({ url })
+}
 </script>
-
 
 <template>
   <scroll-view @scrolltolower="onScrolltolower" class="viewport" scroll-y enable-back-to-top>
-    <!-- 个人资料 -->
     <view class="profile" :style="{ paddingTop: safeAreaInsets!.top + 'px' }">
-      <!-- 情况1：已登录 -->
       <view class="overview" v-if="memberStore.profile">
         <navigator url="/pagesMember/profile/profile" hover-class="none">
           <image
@@ -46,13 +49,12 @@ const onScrolltolower = () => {
           </navigator>
         </view>
       </view>
-      <!-- 情况2：未登录 -->
       <view class="overview" v-else>
         <navigator url="/pages/login/login" hover-class="none">
           <image
             class="avatar gray"
             mode="aspectFill"
-            src="http://yjy-xiaotuxian-dev.oss-cn-beijing.aliyuncs.com/picture/2021-04-06/db628d42-88a7-46e7-abb8-659448c33081.png"
+            src="/static/images/logo_icon.png"
           ></image>
         </navigator>
         <view class="meta">
@@ -68,7 +70,7 @@ const onScrolltolower = () => {
         设置
       </navigator>
     </view>
-    <!-- 我的订单 -->
+
     <view class="orders">
       <view class="title">
         我的订单
@@ -77,7 +79,6 @@ const onScrolltolower = () => {
         </navigator>
       </view>
       <view class="section">
-        <!-- 订单 -->
         <navigator
           v-for="item in orderTypes"
           :key="item.type"
@@ -88,11 +89,23 @@ const onScrolltolower = () => {
         >
           {{ item.text }}
         </navigator>
-        <!-- 客服 -->
         <button class="contact icon-handset" open-type="contact">售后</button>
       </view>
     </view>
-    <!-- 猜你喜欢 -->
+
+    <view class="menu">
+      <view
+        v-for="item in menuItems"
+        :key="item.id"
+        class="menu-item"
+        @tap="onMenuItemTap(item.url)"
+      >
+        <text :class="['menu-icon', item.icon]"></text>
+        <text class="menu-text">{{ item.text }}</text>
+        <text class="menu-arrow"></text>
+      </view>
+    </view>
+
     <view class="guess">
       <WaterProductGuess ref="guessRef" />
     </view>
@@ -109,11 +122,10 @@ page {
 .viewport {
   height: 100%;
   background-repeat: no-repeat;
-  background-image: url(https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/center_bg.png);
+  background-image: linear-gradient(135deg, #0099cc 0%, #0066ff 100%);
   background-size: 100% auto;
 }
 
-/* 用户信息 */
 .profile {
   margin-top: 20rpx;
   position: relative;
@@ -130,6 +142,7 @@ page {
     height: 120rpx;
     border-radius: 50%;
     background-color: #eee;
+    border: 4rpx solid rgba(255, 255, 255, 0.5);
   }
 
   .gray {
@@ -149,7 +162,8 @@ page {
   .nickname {
     max-width: 350rpx;
     margin-bottom: 16rpx;
-    font-size: 30rpx;
+    font-size: 32rpx;
+    font-weight: bold;
 
     overflow: hidden;
     text-overflow: ellipsis;
@@ -162,15 +176,17 @@ page {
   }
 
   .tips {
-    font-size: 22rpx;
+    font-size: 24rpx;
+    opacity: 0.8;
   }
 
   .update {
     padding: 3rpx 10rpx 1rpx;
-    color: rgba(255, 255, 255, 0.8);
-    border: 1rpx solid rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1rpx solid rgba(255, 255, 255, 0.9);
     margin-right: 10rpx;
     border-radius: 30rpx;
+    font-size: 22rpx;
   }
 
   .settings {
@@ -182,25 +198,25 @@ page {
   }
 }
 
-/* 我的订单 */
 .orders {
   position: relative;
   z-index: 99;
   padding: 30rpx;
   margin: 50rpx 20rpx 0;
   background-color: #fff;
-  border-radius: 10rpx;
-  box-shadow: 0 4rpx 6rpx rgba(240, 240, 240, 0.6);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 
   .title {
     height: 40rpx;
     line-height: 40rpx;
-    font-size: 28rpx;
-    color: #1e1e1e;
+    font-size: 30rpx;
+    color: #333;
+    font-weight: bold;
 
     .navigator {
       font-size: 24rpx;
-      color: #939393;
+      color: #0066cc;
       float: right;
     }
   }
@@ -214,11 +230,12 @@ page {
     .contact {
       text-align: center;
       font-size: 24rpx;
-      color: #333;
+      color: #666;
       &::before {
         display: block;
-        font-size: 60rpx;
-        color: #ff9545;
+        font-size: 56rpx;
+        color: #0099cc;
+        margin-bottom: 10rpx;
       }
     }
     .contact {
@@ -231,7 +248,46 @@ page {
   }
 }
 
-/* 猜你喜欢 */
+.menu {
+  position: relative;
+  z-index: 99;
+  margin: 20rpx;
+  background-color: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    padding: 30rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .menu-icon {
+      width: 48rpx;
+      height: 48rpx;
+      margin-right: 20rpx;
+      font-size: 48rpx;
+      color: #0099cc;
+    }
+
+    .menu-text {
+      flex: 1;
+      font-size: 28rpx;
+      color: #333;
+    }
+
+    .menu-arrow {
+      font-size: 24rpx;
+      color: #ccc;
+    }
+  }
+}
+
 .guess {
   background-color: #f7f7f8;
   margin-top: 20rpx;

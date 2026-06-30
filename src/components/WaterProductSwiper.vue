@@ -4,11 +4,10 @@ import { ref } from 'vue'
 
 const activeIndex = ref(0)
 
-// 当 swiper 下标发生变化时触发
 const onChange: UniHelper.SwiperOnChange = (ev) => {
   activeIndex.value = ev.detail.current
 }
-// 定义 props 接收
+
 defineProps<{
   list: BannerItem[]
 }>()
@@ -16,14 +15,13 @@ defineProps<{
 
 <template>
   <view class="carousel">
-    <swiper :circular="true" :autoplay="false" :interval="3000" @change="onChange">
+    <swiper :circular="true" :autoplay="true" :interval="4000" @change="onChange">
       <swiper-item v-for="item in list" :key="item.id">
-        <navigator url="/pages/index/index" hover-class="none" class="navigator">
+        <navigator :url="item.hrefurl" hover-class="none" class="navigator">
           <image mode="aspectFill" class="image" :src="item.imgUrl"></image>
         </navigator>
       </swiper-item>
     </swiper>
-    <!-- 指示点 -->
     <view class="indicator">
       <text
         v-for="(item, index) in list"
@@ -36,29 +34,29 @@ defineProps<{
 </template>
 
 <style lang="scss">
-/* 轮播图 */
 .carousel {
-  height: 280rpx;
+  height: 320rpx;
   position: relative;
   overflow: hidden;
-  transform: translateY(0);
-  background-color: #efefef;
+  background: linear-gradient(135deg, #0099cc 0%, #0066ff 100%);
   .indicator {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 16rpx;
+    bottom: 20rpx;
     display: flex;
     justify-content: center;
     .dot {
-      width: 30rpx;
-      height: 6rpx;
+      width: 36rpx;
+      height: 8rpx;
       margin: 0 8rpx;
-      border-radius: 6rpx;
+      border-radius: 8rpx;
       background-color: rgba(255, 255, 255, 0.4);
+      transition: all 0.3s ease;
     }
     .active {
       background-color: #fff;
+      width: 60rpx;
     }
   }
   .navigator,

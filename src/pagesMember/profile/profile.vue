@@ -126,7 +126,7 @@ page {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-image: url(https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/order_bg.png);
+  background-image: linear-gradient(135deg, #0099cc 0%, #0066ff 100%);
   background-size: auto 420rpx;
   background-repeat: no-repeat;
 }

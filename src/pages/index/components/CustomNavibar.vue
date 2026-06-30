@@ -7,11 +7,11 @@
     <!-- logo文字 -->
     <view class="logo">
       <image class="logo-image" src="@/static/images/logo.png"></image>
-      <text class="logo-text">新鲜 · 亲民 · 快捷</text>
+      <text class="logo-text">鲜鱼直供 · 产地直达</text>
     </view>
     <!-- 搜索条 -->
     <view class="search">
-      <text class="icon-search">搜索商品</text>
+      <text class="icon-search">搜索海鲜水产</text>
       <text class="icon-scan"></text>
     </view>
   </view>
@@ -20,7 +20,7 @@
 <style lang="scss">
 /* 自定义导航条 */
 .navbar {
-  background-image: url(@/static/images/navigator_bg.png);
+  background-image: linear-gradient(135deg, #0099cc 0%, #0066ff 100%);
   background-size: cover;
   position: relative;
   display: flex;
@@ -56,7 +56,7 @@
     color: #fff;
     font-size: 28rpx;
     border-radius: 32rpx;
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.2);
   }
   .icon-search {
     &::before {

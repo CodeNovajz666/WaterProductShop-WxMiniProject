@@ -3,7 +3,7 @@ import {
   getMemberAddressByIdAPI,
   postMemberAddressAPI,
   putMemberAddressByIdAPI,
-} from 'src/services/address'
+} from '@/services/address'
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 
@@ -94,10 +94,10 @@ const onSubmit = async () => {
     }
     // 成功提示
     uni.showToast({ icon: 'success', title: query.id ? '修改成功' : '添加成功' })
-    // 返回上一页
+    // 返回上一页（立即执行，延迟30ms确保toast显示）
     setTimeout(() => {
       uni.navigateBack()
-    }, 400)
+    }, 30)
   } catch (error) {
     uni.showToast({ icon: 'error', title: '请填写完整信息' })
   }
@@ -154,34 +154,37 @@ const onSubmit = async () => {
 
 <style lang="scss">
 page {
-  background-color: #f4f4f4;
+  background-color: #f7f7f8;
 }
 
 .content {
-  margin: 20rpx 20rpx 0;
-  padding: 0 20rpx;
-  border-radius: 10rpx;
+  margin: 20rpx;
+  padding: 0 30rpx;
+  border-radius: 16rpx;
   background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 
   .form-item,
   .uni-forms-item {
     display: flex;
     align-items: center;
-    min-height: 96rpx;
-    padding: 25rpx 10rpx;
+    min-height: 100rpx;
+    padding: 25rpx 0;
     background-color: #fff;
     font-size: 28rpx;
-    border-bottom: 1rpx solid #ddd;
+    border-bottom: 1rpx solid #f5f5f5;
     position: relative;
     margin-bottom: 0;
 
-    // 调整 uni-forms 样式
     .uni-forms-item__content {
       display: flex;
+      flex: 1;
     }
 
     .uni-forms-item__error {
       margin-left: 200rpx;
+      font-size: 24rpx;
+      color: #cf4444;
     }
 
     &:last-child {
@@ -189,38 +192,46 @@ page {
     }
 
     .label {
-      width: 200rpx;
+      width: 180rpx;
       color: #333;
+      font-weight: 500;
     }
 
     .input {
       flex: 1;
       display: block;
       height: 46rpx;
+      font-size: 28rpx;
     }
 
     .switch {
       position: absolute;
-      right: -20rpx;
-      transform: scale(0.8);
+      right: 0;
+      transform: scale(0.9);
     }
 
     .picker {
       flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
     }
 
     .placeholder {
-      color: #808080;
+      color: #999;
+      font-size: 28rpx;
     }
   }
 }
 
 .button {
-  height: 80rpx;
+  height: 88rpx;
   margin: 30rpx 20rpx;
   color: #fff;
-  border-radius: 80rpx;
-  font-size: 30rpx;
-  background-color: #27ba9b;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  background: linear-gradient(135deg, #27ba9b 0%, #1a8f78 100%);
+  box-shadow: 0 6rpx 20rpx rgba(39, 186, 155, 0.4);
 }
 </style>

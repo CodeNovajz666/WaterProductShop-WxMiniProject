@@ -51,13 +51,18 @@
 				"navigationBarTitleText": "登录"
 			}
 		},
-				{
+		{
 			"path": "pages/hot/hot",
 			"style": {
 				"navigationBarTitleText": "热门推荐"
 			}
+		},
+		{
+			"path": "pages/goods/goods",
+			"style": {
+				"navigationBarTitleText": "商品详情"
+			}
 		}
-
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
@@ -120,13 +125,13 @@
 					}
 				},
 				{
-					"path": "address",
+					"path": "address/address",
 					"style": {
 						"navigationBarTitleText": "地址管理"
 					}
 				},
 				{
-					"path": "address-form",
+					"path": "address-form/address-form",
 					"style": {
 						"navigationBarTitleText": ""
 					}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { deleteMemberAddressByIdAPI, getMemberAddressAPI } from 'src/services/address'
+import { deleteMemberAddressByIdAPI, getMemberAddressAPI } from '@/services/address'
 import { useAddressStore } from '@/stores/modules/address'
 import type { AddressItem } from '@/types/address'
 import { onShow } from '@dcloudio/uni-app'
@@ -53,11 +53,14 @@ const onChangeAddress = (item: AddressItem) => {
           <uni-swipe-action-item class="item" v-for="item in addressList" :key="item.id">
             <view class="item-content" @tap="onChangeAddress(item)">
               <view class="user">
-                {{ item.receiver }}
+                <text class="user-name">{{ item.receiver }}</text>
                 <text class="contact">{{ item.contact }}</text>
                 <text v-if="item.isDefault" class="badge">默认</text>
               </view>
-              <view class="locate">{{ item.fullLocation }} {{ item.address }}</view>
+              <view class="locate">
+                <text class="locate-icon">📍</text>
+                <text>{{ item.fullLocation }} {{ item.address }}</text>
+              </view>
               <navigator
                 class="edit"
                 hover-class="none"
@@ -74,12 +77,15 @@ const onChangeAddress = (item: AddressItem) => {
           </uni-swipe-action-item>
         </uni-swipe-action>
       </view>
-      <view v-else class="blank">暂无收货地址</view>
+      <view v-else class="blank">
+        <view class="blank-icon">📍</view>
+        <text class="blank-text">暂无收货地址</text>
+      </view>
     </scroll-view>
     <!-- 添加按钮 -->
     <view class="add-btn">
       <navigator hover-class="none" url="/pagesMember/address-form/address-form">
-        新建地址
+        + 新建地址
       </navigator>
     </view>
   </view>
@@ -89,16 +95,16 @@ const onChangeAddress = (item: AddressItem) => {
 page {
   height: 100%;
   overflow: hidden;
+  background-color: #f7f7f8;
 }
 
-/* 删除按钮 */
 .delete-button {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 50px;
+  width: 160rpx;
   height: 100%;
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: #fff;
   border-radius: 0;
   padding: 0;
@@ -109,34 +115,35 @@ page {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f4f4f4;
 
   .scroll-view {
-    padding-top: 20rpx;
+    flex: 1;
+    padding: 20rpx;
   }
 }
 
 .address {
-  padding: 0 20rpx;
-  margin: 0 20rpx;
-  border-radius: 10rpx;
   background-color: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 
   .item-content {
-    line-height: 1;
-    padding: 40rpx 10rpx 38rpx;
-    border-bottom: 1rpx solid #ddd;
+    display: flex;
+    flex-direction: column;
+    padding: 36rpx;
+    border-bottom: 1rpx solid #f5f5f5;
     position: relative;
 
     .edit {
       position: absolute;
       top: 36rpx;
-      right: 30rpx;
-      padding: 2rpx 0 2rpx 20rpx;
-      border-left: 1rpx solid #666;
+      right: 36rpx;
+      padding: 8rpx 20rpx;
       font-size: 26rpx;
       color: #666;
-      line-height: 1;
+      background-color: #f5f5f5;
+      border-radius: 8rpx;
     }
   }
 
@@ -145,47 +152,87 @@ page {
   }
 
   .user {
-    font-size: 28rpx;
-    margin-bottom: 20rpx;
-    color: #333;
+    display: flex;
+    align-items: center;
+    margin-bottom: 16rpx;
+
+    .user-name {
+      font-size: 32rpx;
+      font-weight: bold;
+      color: #333;
+      margin-right: 20rpx;
+    }
 
     .contact {
+      font-size: 28rpx;
       color: #666;
+      margin-right: 16rpx;
     }
 
     .badge {
-      display: inline-block;
-      padding: 4rpx 10rpx 2rpx 14rpx;
-      margin: 2rpx 0 0 10rpx;
-      font-size: 26rpx;
+      display: inline-flex;
+      align-items: center;
+      padding: 6rpx 16rpx;
+      font-size: 22rpx;
       color: #27ba9b;
       border-radius: 6rpx;
       border: 1rpx solid #27ba9b;
+      background-color: rgba(39, 186, 155, 0.08);
     }
   }
 
   .locate {
+    display: flex;
+    align-items: flex-start;
+    font-size: 28rpx;
+    color: #666;
     line-height: 1.6;
-    font-size: 26rpx;
-    color: #333;
+
+    .locate-icon {
+      font-size: 28rpx;
+      color: #27ba9b;
+      margin-right: 8rpx;
+      flex-shrink: 0;
+    }
   }
 }
 
 .blank {
-  margin-top: 300rpx;
-  text-align: center;
-  font-size: 32rpx;
-  color: #888;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 200rpx;
+
+  .blank-icon {
+    width: 160rpx;
+    height: 160rpx;
+    background-color: #f0f0f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64rpx;
+    color: #ccc;
+    margin-bottom: 30rpx;
+  }
+
+  .blank-text {
+    font-size: 30rpx;
+    color: #999;
+  }
 }
 
 .add-btn {
-  height: 80rpx;
+  height: 88rpx;
   text-align: center;
-  line-height: 80rpx;
+  line-height: 88rpx;
   margin: 30rpx 20rpx;
   color: #fff;
-  border-radius: 80rpx;
-  font-size: 30rpx;
-  background-color: #27ba9b;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  background: linear-gradient(135deg, #27ba9b 0%, #1a8f78 100%);
+  box-shadow: 0 6rpx 20rpx rgba(39, 186, 155, 0.4);
 }
 </style>
