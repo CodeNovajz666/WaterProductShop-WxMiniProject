@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BannerItem } from '@/types/home'
+import type { SeafoodBanner } from '@/types/seafood'
 import { ref } from 'vue'
 
 const activeIndex = ref(0)
@@ -9,7 +9,7 @@ const onChange: UniHelper.SwiperOnChange = (ev) => {
 }
 
 defineProps<{
-  list: BannerItem[]
+  list: SeafoodBanner[]
 }>()
 </script>
 
@@ -17,9 +17,10 @@ defineProps<{
   <view class="carousel">
     <swiper :circular="true" :autoplay="true" :interval="4000" @change="onChange">
       <swiper-item v-for="item in list" :key="item.id">
-        <navigator :url="item.hrefurl" hover-class="none" class="navigator">
+        <navigator v-if="item.hrefurl" :url="item.hrefurl" hover-class="none" class="navigator">
           <image mode="aspectFill" class="image" :src="item.imgUrl"></image>
         </navigator>
+        <image v-else mode="aspectFill" class="image" :src="item.imgUrl"></image>
       </swiper-item>
     </swiper>
     <view class="indicator">

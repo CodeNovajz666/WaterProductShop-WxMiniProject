@@ -3,13 +3,14 @@ import { getHotRecommendAPI } from '@/services/hot'
 import type { SubTypeItem } from '@/types/hot'
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
+import { getSeafoodImageById } from '@/utils/image'
 
-// 热门推荐页 标题和url
+// 水产推荐页 标题和url
 const urlMap = [
-  { type: '1', title: '特惠推荐', url: '/hot/preference' },
-  { type: '2', title: '爆款推荐', url: '/hot/inVogue' },
-  { type: '3', title: '一站买全', url: '/hot/oneStop' },
-  { type: '4', title: '新鲜好物', url: '/hot/new' },
+  { type: '1', title: '水产特惠', url: '/hot/preference' },
+  { type: '2', title: '人气爆款', url: '/hot/inVogue' },
+  { type: '3', title: '水产一站购', url: '/hot/oneStop' },
+  { type: '4', title: '新鲜水产', url: '/hot/new' },
 ]
 
 // uniapp 获取页面参数
@@ -36,7 +37,17 @@ const getHotRecommendData = async () => {
   })
   // console.log(res.result.title)
   bannerPicture.value = res.result.bannerPicture
-  subTypes.value = res.result.subTypes
+  let globalIndex = 0
+  subTypes.value = res.result.subTypes.map(subType => ({
+    ...subType,
+    goodsItems: {
+      ...subType.goodsItems,
+      items: subType.goodsItems.items.map(item => ({
+        ...item,
+        picture: getSeafoodImageById(globalIndex++)
+      }))
+    }
+  }))
 }
 
 // 页面加载

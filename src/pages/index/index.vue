@@ -1,93 +1,172 @@
 <script setup lang="ts">
-import { getHomeBannerAPI, getHomeCategoryAPI, getHomeHotAPI } from '@/services/home'
-import type { BannerItem, CategoryItem, HotItem } from '@/types/home'
-import { onLoad } from '@dcloudio/uni-app'
-import { ref } from 'vue'
+import { getSeafoodBannersAPI, getSeafoodItemsAPI, getUgcContentsAPI } from '@/services/seafood'
+import type { SeafoodBanner, SeafoodItem, UgcContent } from '@/types/seafood'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { ref, nextTick, watch, computed } from 'vue'
 import CustomNavibar from './components/CustomNavibar.vue'
-import CategoryPanel from './components/CategoryPanel.vue'
-import HotPanel from './components/HotPanel.vue'
-import PageSkeleton from './components/PageSkeleton.vue'
 import WaterProductSwiper from '@/components/WaterProductSwiper.vue'
-import WaterProductGuess from '@/components/WaterProductGuess.vue'
-import { useGuessList } from '@/composables'
 
-const bannerList = ref<BannerItem[]>([])
+const bannerList = ref<SeafoodBanner[]>([])
 const getHomeBannerData = async () => {
-  const res = await getHomeBannerAPI()
-  const seafoodImages = [
-    'https://aka.doubaocdn.com/s/Itn71wgyho',
-    'https://aka.doubaocdn.com/s/ykpS1wgyho',
-    'https://aka.doubaocdn.com/s/FmE21wgyho',
-    'https://aka.doubaocdn.com/s/yFKn1wgyho',
-    'https://aka.doubaocdn.com/s/bI8m1wgyho'
-  ]
-  bannerList.value = res.result.map((item, index) => ({
-    ...item,
-    imgUrl: seafoodImages[index % seafoodImages.length]
-  }))
+  const res = await getSeafoodBannersAPI()
+  bannerList.value = res.result
 }
 
-const categoryList = ref<CategoryItem[]>([])
-const getHomeCategoryData = async () => {
-  const res = await getHomeCategoryAPI()
-  const seafoodIcons = [
-    'https://aka.doubaocdn.com/s/whZ51wgyho',
-    'https://aka.doubaocdn.com/s/ykpS1wgyho',
-    'https://aka.doubaocdn.com/s/zr6j1wgyho',
-    'https://aka.doubaocdn.com/s/hCua1wgyho',
-    'https://aka.doubaocdn.com/s/fmN31wgyho',
-    'https://aka.doubaocdn.com/s/1g461wgyho',
-    'https://aka.doubaocdn.com/s/eouS1wgyho',
-    'https://aka.doubaocdn.com/s/eUrc1wgyho',
-    'https://aka.doubaocdn.com/s/8Uj61wgyho',
-    'https://aka.doubaocdn.com/s/of9N1wgyho'
-  ]
-  const seafoodNames = ['深海鱼类', '虾蟹贝类', '海鲜干货', '冷冻水产', '新鲜肉类', '时令果蔬', '海鲜调料', '鲜活直供', '进口海产', '礼盒套餐']
-  categoryList.value = res.result.map((item, index) => ({
-    ...item,
-    name: seafoodNames[index % seafoodNames.length],
-    icon: seafoodIcons[index % seafoodIcons.length]
-  }))
+const ugcList = ref<UgcContent[]>([])
+const getUgcData = async () => {
+  const res = await getUgcContentsAPI()
+  ugcList.value = res.result
 }
 
-const hotList = ref<HotItem[]>([])
-const getHomeHotData = async () => {
-  const res = await getHomeHotAPI()
-  const seafoodData = [
-    { title: '新鲜直达', alt: '当日捕捞', pictures: ['https://aka.doubaocdn.com/s/U5FK1wgyho', 'https://aka.doubaocdn.com/s/AMVb1wgyho'] },
-    { title: '限时特惠', alt: '特价秒杀', pictures: ['https://aka.doubaocdn.com/s/aKmP1wgyho', 'https://aka.doubaocdn.com/s/bI8m1wgyho'] },
-    { title: '进口海产', alt: '品质甄选', pictures: ['https://aka.doubaocdn.com/s/UWyU1wgyho', 'https://aka.doubaocdn.com/s/4acv1wgyho'] },
-    { title: '海鲜礼盒', alt: '送礼佳品', pictures: ['https://aka.doubaocdn.com/s/1rJW1wgyho', 'https://aka.doubaocdn.com/s/zJnA1wgyho'] }
-  ]
-  hotList.value = res.result.map((item, index) => ({
-    ...item,
-    title: seafoodData[index % seafoodData.length].title,
-    alt: seafoodData[index % seafoodData.length].alt,
-    pictures: seafoodData[index % seafoodData.length].pictures,
-    target: '/pages/category/category'
-  }))
+const goodsList = ref<SeafoodItem[]>([])
+const goodsPage = ref(1)
+const goodsPageSize = 6
+const goodsFinished = ref(false)
+const goodsLoading = ref(false)
+
+const getGoodsData = async (reset = false) => {
+  if (goodsLoading.value) return
+  if (reset) {
+    goodsPage.value = 1
+    goodsFinished.value = false
+  }
+  if (goodsFinished.value) return
+  goodsLoading.value = true
+  try {
+    const res = await getSeafoodItemsAPI({ page: goodsPage.value, pageSize: goodsPageSize })
+    if (reset) {
+      goodsList.value = res.result.items
+    } else {
+      goodsList.value = [...goodsList.value, ...res.result.items]
+    }
+    if (res.result.items.length < goodsPageSize) {
+      goodsFinished.value = true
+    }
+    goodsPage.value++
+  } finally {
+    goodsLoading.value = false
+  }
 }
 
-const isLoading = ref(false)
+const bannerLoading = ref(true)
+const ugcLoading = ref(true)
 
-onLoad(async () => {
-  isLoading.value = true
-  await Promise.all([getHomeBannerData(), getHomeCategoryData(), getHomeHotData()])
-  isLoading.value = false
+const isLoading = computed(() => bannerLoading.value && ugcLoading.value && goodsLoading.value)
+
+// ===== 滚动锚点逻辑 =====
+const scrollIntoView = ref('')
+const pendingScrollToGoods = ref(false)
+const goodsSectionHighlight = ref(false)
+
+// 执行滚动到商品区域
+const scrollToGoodsSection = () => {
+  nextTick(() => {
+    setTimeout(() => {
+      scrollIntoView.value = 'goods-section'
+      // 清空 scrollIntoView 以允许重复触发
+      setTimeout(() => {
+        scrollIntoView.value = ''
+      }, 1000)
+      // 高亮商品区域引导视觉
+      goodsSectionHighlight.value = true
+      setTimeout(() => {
+        goodsSectionHighlight.value = false
+      }, 2000)
+    }, 300)
+  })
+}
+
+// 监听商品列表加载完成（兼容延迟加载场景）
+watch(goodsList, (newVal) => {
+  if (pendingScrollToGoods.value && newVal.length > 0) {
+    pendingScrollToGoods.value = false
+    scrollToGoodsSection()
+  }
 })
 
-const { guessRef, onScrolltolower } = useGuessList()
-const isTriggered = ref(false)
-const onRefresherrefresh = async () => {
-  isTriggered.value = true
-  guessRef.value?.resetData()
-  await Promise.all([
-    getHomeBannerData(),
-    getHomeCategoryData(),
-    getHomeHotData(),
-    guessRef.value?.getMore(),
-  ])
-  isTriggered.value = false
+// 页面加载：三组数据独立加载，谁快谁先渲染
+onLoad(() => {
+  // Banner 优先加载（数据量小，渲染快）
+  getHomeBannerData().finally(() => { bannerLoading.value = false })
+  // UGC 和商品并行但不互相阻塞
+  getUgcData().finally(() => { ugcLoading.value = false })
+  getGoodsData(true)
+})
+
+// 页面显示时检测是否需要滚动到商品区域
+onShow(() => {
+  const scrollToGoods = uni.getStorageSync('scroll_to_goods')
+  if (scrollToGoods) {
+    uni.removeStorageSync('scroll_to_goods')
+    if (goodsList.value.length > 0) {
+      // 商品已加载，直接滚动
+      scrollToGoodsSection()
+    } else {
+      // 商品尚未加载完成，设置标志等待 watch 触发
+      pendingScrollToGoods.value = true
+    }
+  }
+})
+
+const onRefresh = async () => {
+  bannerLoading.value = true
+  ugcLoading.value = true
+  try {
+    await Promise.all([
+      getHomeBannerData().finally(() => { bannerLoading.value = false }),
+      getUgcData().finally(() => { ugcLoading.value = false }),
+      getGoodsData(true),
+    ])
+  } catch (error) {
+    console.error('首页数据刷新失败:', error)
+  }
+}
+
+const formatSoldCount = (count: number) => {
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + '万'
+  }
+  return count.toString()
+}
+
+const onChange = () => {}
+
+const onLike = (item: UgcContent) => {
+  if (!item._liked) {
+    item.likes++
+    item._liked = true
+    uni.showToast({ title: '点赞成功', icon: 'none', duration: 1000 })
+  }
+}
+
+const onShareUgc = (item: UgcContent) => {
+  const shareCode = `SHARE${Date.now().toString(36).toUpperCase()}`
+  uni.showModal({
+    title: '分享奖励',
+    content: '分享给好友，好友打开即可获得专属优惠码！',
+    confirmText: '去分享',
+    success: (res) => {
+      if (res.confirm) {
+        uni.navigateTo({ url: `/pages/ugc-detail/ugc-detail?id=${item.id}` })
+      }
+    }
+  })
+}
+
+const onGoGoods = (goodsId: string) => {
+  uni.navigateTo({ url: `/pages/goods/goods?id=${goodsId}` })
+}
+
+const onGoUgcDetail = (ugcId: string) => {
+  uni.navigateTo({ url: `/pages/ugc-detail/ugc-detail?id=${ugcId}` })
+}
+
+const onGoUgcList = () => {
+  uni.navigateTo({ url: '/pages/ugc-list/ugc-list' })
+}
+
+const onGoPostUgc = () => {
+  uni.navigateTo({ url: '/pages/ugc-post/ugc-post' })
 }
 </script>
 
@@ -96,82 +175,159 @@ const onRefresherrefresh = async () => {
   <scroll-view
     enable-back-to-top
     refresher-enabled
-    @refresherrefresh="onRefresherrefresh"
-    :refresher-triggered="isTriggered"
-    @scrolltolower="onScrolltolower"
+    @refresherrefresh="onRefresh"
     class="scroll-view"
     scroll-y
+    :scroll-into-view="scrollIntoView"
+    scroll-with-animation
+    @scrolltolower="getGoodsData(false)"
   >
-    <PageSkeleton v-if="isLoading" />
+    <view v-if="isLoading" class="loading-state">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
     <template v-else>
-      <WaterProductSwiper :list="bannerList" />
-      <CategoryPanel :list="categoryList" />
-      <HotPanel :list="hotList" />
-      <view class="fresh-section">
+      <view class="section safety-section">
         <view class="section-header">
-          <text class="section-title">新鲜直达</text>
-          <text class="section-desc">当日捕捞 · 冷链配送</text>
+          <text class="section-title">🛡️ 食品安全与品牌背书</text>
+          <text class="section-desc">品质保障 · 安心食用</text>
         </view>
-        <view class="fresh-list">
+        <WaterProductSwiper :list="bannerList" />
+      </view>
+
+      <view class="section ugc-section">
+        <view class="section-header" @tap="onGoUgcList">
+          <text class="section-title">📸 用户分享</text>
+          <view class="section-header-right">
+            <text class="section-desc">真实体验 · 好物推荐</text>
+            <view class="ugc-post-btn" @tap.stop="onGoPostUgc">
+              <text class="post-icon">✏️</text>
+              <text class="post-text">发布分享</text>
+            </view>
+          </view>
+        </view>
+        <view class="ugc-swiper-wrap" @tap="onGoUgcList">
+        <swiper
+          class="ugc-swiper"
+          vertical
+          :circular="true"
+          :autoplay="false"
+          :interval="4000"
+          @change="onChange"
+          :previous-margin="'120rpx'"
+          :next-margin="'120rpx'"
+        >
+          <swiper-item v-for="item in ugcList" :key="item.id">
+            <view class="ugc-card" @tap="onGoUgcDetail(item.id)">
+              <view class="ugc-header">
+                <image class="ugc-avatar" :src="item.avatar" mode="aspectFill" />
+                <view class="ugc-user-info">
+                  <text class="ugc-username">{{ item.userName }}</text>
+                  <text class="ugc-time">{{ item.createdAt }}</text>
+                </view>
+                <view class="ugc-share-btn" @tap.stop="onShareUgc(item)">
+                  <text class="share-icon">↗</text>
+                </view>
+              </view>
+              <text class="ugc-content">{{ item.content }}</text>
+              <view class="ugc-media" v-if="item.video || item.images.length > 0">
+                <!-- 视频封面 -->
+                <view v-if="item.video" class="ugc-video-cover" @tap.stop="onGoUgcDetail(item.id)">
+                  <image v-if="item.videoCover" class="video-thumb" :src="item.videoCover" mode="aspectFill" />
+                  <view v-else class="video-thumb-placeholder">
+                    <text class="placeholder-icon">📹</text>
+                  </view>
+                  <view class="video-play-icon">
+                    <text>▶</text>
+                  </view>
+                  <view class="video-badge">
+                    <text>视频</text>
+                  </view>
+                </view>
+                <!-- 图片列表 -->
+                <view class="ugc-images" v-if="!item.video && item.images.length > 0">
+                  <image
+                    v-for="(img, idx) in item.images"
+                    :key="idx"
+                    class="ugc-image"
+                    :src="img"
+                    mode="aspectFill"
+                  />
+                </view>
+              </view>
+              <view class="ugc-actions">
+                <view class="ugc-action-item" @tap.stop="onLike(item)">
+                  <text class="ugc-action-icon" :class="{ liked: item._liked }">❤️</text>
+                  <text class="ugc-action-text">{{ item.likes }}</text>
+                </view>
+                <view class="ugc-action-item" @tap.stop>
+                  <text class="ugc-action-icon">💬</text>
+                  <text class="ugc-action-text">{{ item.comments }}</text>
+                </view>
+                <view class="ugc-action-item" @tap.stop="onShareUgc(item)">
+                  <text class="ugc-action-icon">🔗</text>
+                  <text class="ugc-action-text">分享</text>
+                </view>
+              </view>
+              <view class="ugc-goods-card" @tap.stop="onGoGoods(item.goodsId)">
+                <image class="ugc-goods-image" :src="item.goodsImage" mode="aspectFill" />
+                <view class="ugc-goods-info">
+                  <text class="ugc-goods-name">{{ item.goodsName }}</text>
+                  <text class="ugc-goods-price">立即购买 →</text>
+                </view>
+              </view>
+            </view>
+          </swiper-item>
+        </swiper>
+        </view>
+        <view class="ugc-hint" @tap="onGoUgcList">
+          <view class="hint-arrow up"></view>
+          <text class="ugc-hint-text">上下滑动查看更多 · 点击查看全部</text>
+          <view class="hint-arrow down"></view>
+        </view>
+      </view>
+
+      <view class="section goods-section" id="goods-section" :class="{ 'goods-highlight': goodsSectionHighlight }">
+        <view class="section-header">
+          <text class="section-title">🐟 精选好货</text>
+          <text class="section-desc">品质甄选 · 新鲜直达</text>
+        </view>
+        <view class="goods-grid">
           <navigator
-            v-for="item in [1, 2, 3, 4]"
-            :key="item"
-            class="fresh-item"
-            :url="`/pages/goods/goods?id=${item}`"
+            v-for="item in goodsList"
+            :key="item.id"
+            class="goods-card"
+            :url="`/pages/goods/goods?id=${item.id}`"
+            hover-class="none"
           >
-            <image class="fresh-image" mode="aspectFill" :src="`https://aka.doubaocdn.com/s/${['FmE21wgyho', 'yFKn1wgyho', 'bI8m1wgyho', '0uP11wgyho'][item - 1]}`"></image>
-            <view class="fresh-info">
-              <text class="fresh-name">{{ ['深海三文鱼', '渤海大虾', '鲜活鲈鱼', '挪威鳕鱼'][item - 1] }}</text>
-              <view class="fresh-price">
-                <text class="current-price">¥{{ [68, 58, 35, 88][item - 1] }}</text>
-                <text class="original-price">¥{{ [88, 78, 45, 118][item - 1] }}</text>
+            <view class="goods-image-wrapper">
+              <image class="goods-image" :src="item.image" mode="aspectFill" lazy-load />
+              <view class="goods-badge" v-if="item.soldCount">
+                <text class="goods-badge-text">已售{{ formatSoldCount(item.soldCount) }}</text>
+              </view>
+            </view>
+            <view class="goods-info">
+              <text class="goods-name">{{ item.name }}</text>
+              <text class="goods-desc">{{ item.desc }}</text>
+              <view class="goods-price-wrap">
+                <text class="goods-price">¥{{ item.price }}</text>
+                <text class="goods-old-price" v-if="item.oldPrice">¥{{ item.oldPrice }}</text>
               </view>
             </view>
           </navigator>
         </view>
       </view>
-      <view class="flash-sale">
-        <view class="flash-header">
-          <text class="flash-title">限时特惠</text>
-          <view class="flash-countdown">
-            <text class="countdown-label">距结束</text>
-            <view class="countdown-time">
-              <text class="time-item">02</text>
-              <text class="time-separator">:</text>
-              <text class="time-item">30</text>
-              <text class="time-separator">:</text>
-              <text class="time-item">45</text>
-            </view>
-          </view>
-        </view>
-        <scroll-view scroll-x class="flash-scroll">
-          <view class="flash-list">
-            <navigator
-              v-for="item in [101, 102, 103, 104, 105]"
-              :key="item"
-              class="flash-item"
-              :url="`/pages/goods/goods?id=${item}`"
-            >
-              <image class="flash-image" mode="aspectFill" :src="`https://aka.doubaocdn.com/s/${['Itn71wgyho', 'ykpS1wgyho', 'bI8m1wgyho', 'FmE21wgyho', 'yFKn1wgyho'][item - 101]}`"></image>
-              <view class="flash-info">
-                <text class="flash-name">{{ ['鲜活龙虾', '帝王蟹', '银鳕鱼', '三文鱼礼盒', '海鲜大礼包'][item - 101] }}</text>
-                <view class="flash-price-wrap">
-                  <text class="flash-price">¥{{ [168, 298, 158, 298, 598][item - 101] }}</text>
-                  <text class="flash-original">¥{{ [268, 498, 238, 398, 898][item - 101] }}</text>
-                </view>
-              </view>
-            </navigator>
-          </view>
-        </scroll-view>
+
+      <view class="footer">
+        <text class="footer-text">优质海鲜 · 品质生活</text>
       </view>
-      <WaterProductGuess ref="guessRef" />
     </template>
   </scroll-view>
 </template>
 
 <style lang="scss">
 page {
-  background-color: #f0f8ff;
+  background-color: #f5f7fa;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -179,157 +335,474 @@ page {
 .scroll-view {
   flex: 1;
 }
-.fresh-section {
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+}
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 6rpx solid #f3f3f3;
+  border-top: 6rpx solid #00b894;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.loading-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-top: 20rpx;
+}
+.section {
   background-color: #fff;
   margin: 20rpx;
-  border-radius: 16rpx;
-  padding: 20rpx;
+  border-radius: 20rpx;
+  padding: 24rpx;
   box-sizing: border-box;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 .section-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   margin-bottom: 20rpx;
 }
 .section-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #0066cc;
+  color: #333;
+}
+.section-header-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 .section-desc {
   font-size: 24rpx;
   color: #999;
+}
+.ugc-post-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 24rpx;
+  background: linear-gradient(135deg, #ff6699 0%, #ff99cc 100%);
+  border-radius: 30rpx;
   margin-left: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 102, 153, 0.3);
+
+  .post-icon {
+    font-size: 24rpx;
+  }
+
+  .post-text {
+    font-size: 24rpx;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
 }
-.fresh-list {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
+
+.safety-section {
+  .section-header {
+    .section-title {
+      color: #0088cc;
+    }
+  }
 }
-.fresh-item {
-  height: 400rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+
+.ugc-section {
+  background: linear-gradient(180deg, #fff 0%, #f8faff 100%);
+  padding: 24rpx 0;
+  .section-title {
+    color: #ff6699;
+  }
+  .ugc-swiper {
+    height: 700rpx;
+    margin: 0 20rpx;
+  }
+  .ugc-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 24rpx;
+    padding: 30rpx;
+    box-sizing: border-box;
+    box-shadow: 0 8rpx 32rpx rgba(255, 102, 153, 0.12);
+    transition: all 0.3s ease;
+  }
+  .ugc-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24rpx;
+  }
+  .ugc-avatar {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    border: 4rpx solid #ffccdd;
+  }
+  .ugc-user-info {
+    flex: 1;
+    margin-left: 20rpx;
+    display: flex;
+    flex-direction: column;
+  }
+  .ugc-username {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #333;
+  }
+  .ugc-time {
+    font-size: 24rpx;
+    color: #999;
+    margin-top: 6rpx;
+  }
+  .ugc-share-btn {
+    width: 64rpx;
+    height: 64rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f7fa;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+
+    .share-icon {
+      font-size: 28rpx;
+      color: #666;
+    }
+
+    &:active {
+      transform: scale(0.9);
+      background: #ffeef0;
+    }
+  }
+  .ugc-content {
+    font-size: 30rpx;
+    color: #333;
+    line-height: 1.7;
+    margin-bottom: 20rpx;
+    flex: 1;
+  }
+  .ugc-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16rpx;
+    margin-bottom: 20rpx;
+  }
+  .ugc-image {
+    width: calc(33.33% - 12rpx);
+    height: 200rpx;
+    border-radius: 16rpx;
+    transition: transform 0.2s ease;
+
+    &:active {
+      transform: scale(0.96);
+    }
+  }
+  .ugc-video-cover {
+    position: relative;
+    width: 100%;
+    height: 320rpx;
+    border-radius: 16rpx;
+    overflow: hidden;
+    margin-bottom: 20rpx;
+    background: #1a1a1a;
+
+    .video-thumb {
+      width: 100%;
+      height: 100%;
+    }
+
+    .video-thumb-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .placeholder-icon {
+        font-size: 64rpx;
+      }
+    }
+
+    .video-play-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80rpx;
+      height: 80rpx;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      text {
+        font-size: 36rpx;
+        color: #fff;
+      }
+    }
+
+    .video-badge {
+      position: absolute;
+      top: 12rpx;
+      left: 12rpx;
+      padding: 4rpx 16rpx;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 8rpx;
+
+      text {
+        font-size: 20rpx;
+        color: #fff;
+      }
+    }
+  }
+  .ugc-actions {
+    display: flex;
+    margin-bottom: 20rpx;
+    padding-bottom: 20rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+  }
+  .ugc-action-item {
+    display: flex;
+    align-items: center;
+    margin-right: 40rpx;
+    transition: opacity 0.2s ease;
+
+    &:active {
+      opacity: 0.6;
+    }
+  }
+  .ugc-action-icon {
+    font-size: 36rpx;
+    margin-right: 10rpx;
+    transition: all 0.2s ease;
+
+    &.liked {
+      color: #ff6699;
+      transform: scale(1.2);
+    }
+  }
+  .ugc-action-text {
+    font-size: 28rpx;
+    color: #666;
+  }
+  .ugc-goods-card {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #fff0f3 0%, #ffe6eb 100%);
+    border-radius: 16rpx;
+    padding: 20rpx;
+    border: 2rpx solid #ffccdd;
+    transition: all 0.2s ease;
+
+    &:active {
+      transform: scale(0.98);
+      background: linear-gradient(135deg, #ffe6eb 0%, #ffd4dd 100%);
+    }
+  }
+  .ugc-goods-image {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 12rpx;
+  }
+  .ugc-goods-info {
+    flex: 1;
+    margin-left: 20rpx;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .ugc-goods-name {
+    font-size: 28rpx;
+    color: #333;
+    font-weight: bold;
+  }
+  .ugc-goods-price {
+    font-size: 24rpx;
+    color: #ff6699;
+    font-weight: 600;
+    margin-top: 8rpx;
+  }
+  .ugc-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20rpx;
+  }
+  .hint-arrow {
+    width: 24rpx;
+    height: 24rpx;
+    border-left: 3rpx solid #ccc;
+    border-top: 3rpx solid #ccc;
+
+    &.up {
+      transform: rotate(-45deg);
+      margin-bottom: 8rpx;
+      animation: arrowUp 1.5s ease-in-out infinite;
+    }
+
+    &.down {
+      transform: rotate(135deg);
+      margin-top: 8rpx;
+      animation: arrowDown 1.5s ease-in-out infinite;
+    }
+  }
+
+  @keyframes arrowUp {
+    0%, 100% {
+      opacity: 0.4;
+      transform: rotate(-45deg) translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: rotate(-45deg) translateY(-10rpx);
+    }
+  }
+
+  @keyframes arrowDown {
+    0%, 100% {
+      opacity: 0.4;
+      transform: rotate(135deg) translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: rotate(135deg) translateY(10rpx);
+    }
+  }
+
+  .ugc-hint-text {
+    font-size: 26rpx;
+    color: #999;
+  }
 }
-.fresh-image {
-  width: 100%;
-  height: 100%;
-}
-.fresh-info {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 15rpx;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
-}
-.fresh-name {
-  font-size: 28rpx;
-  color: #fff;
-}
-.fresh-price {
-  display: flex;
-  align-items: baseline;
-  margin-top: 8rpx;
-}
-.current-price {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #ffd700;
-}
-.original-price {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
-  text-decoration: line-through;
-  margin-left: 10rpx;
-}
-.flash-sale {
-  background-color: #fff;
-  margin: 0 20rpx 20rpx;
+
+.goods-section {
+  transition: background-color 0.6s ease, box-shadow 0.6s ease;
   border-radius: 16rpx;
-  padding: 20rpx;
+  padding: 24rpx;
+  margin: 20rpx 0;
+
+  &.goods-highlight {
+    animation: goodsHighlight 2s ease;
+  }
+
+  @keyframes goodsHighlight {
+    0% {
+      background-color: transparent;
+      box-shadow: none;
+    }
+    20% {
+      background-color: rgba(0, 184, 148, 0.12);
+      box-shadow: 0 0 0 4rpx rgba(0, 184, 148, 0.3);
+    }
+    60% {
+      background-color: rgba(0, 184, 148, 0.08);
+      box-shadow: 0 0 0 2rpx rgba(0, 184, 148, 0.2);
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: none;
+    }
+  }
+
+  .section-title {
+    color: #009966;
+  }
+  .goods-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20rpx;
+  }
+  .goods-card {
+    background: #fff;
+    border-radius: 16rpx;
+    overflow: hidden;
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease;
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+  .goods-image-wrapper {
+    position: relative;
+    width: 100%;
+    height: 280rpx;
+  }
+  .goods-image {
+    width: 100%;
+    height: 100%;
+  }
+  .goods-badge {
+    position: absolute;
+    top: 12rpx;
+    left: 12rpx;
+    background: rgba(255, 87, 34, 0.9);
+    border-radius: 20rpx;
+    padding: 6rpx 16rpx;
+  }
+  .goods-badge-text {
+    font-size: 22rpx;
+    color: #fff;
+    font-weight: bold;
+  }
+  .goods-info {
+    padding: 16rpx;
+  }
+  .goods-name {
+    font-size: 28rpx;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .goods-desc {
+    font-size: 22rpx;
+    color: #999;
+    display: block;
+    margin-top: 8rpx;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .goods-price-wrap {
+    display: flex;
+    align-items: baseline;
+    margin-top: 12rpx;
+  }
+  .goods-price {
+    font-size: 34rpx;
+    font-weight: bold;
+    color: #ff4444;
+  }
+  .goods-old-price {
+    font-size: 24rpx;
+    color: #999;
+    text-decoration: line-through;
+    margin-left: 10rpx;
+  }
 }
-.flash-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
+
+.footer {
+  text-align: center;
+  padding: 40rpx 0;
 }
-.flash-title {
-  font-size: 34rpx;
-  font-weight: bold;
-  color: #ff4444;
-}
-.flash-countdown {
-  display: flex;
-  align-items: center;
-}
-.countdown-label {
+.footer-text {
   font-size: 24rpx;
   color: #999;
-  margin-right: 10rpx;
-}
-.countdown-time {
-  display: flex;
-  align-items: center;
-}
-.time-item {
-  background-color: #333;
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: bold;
-  padding: 6rpx 12rpx;
-  border-radius: 8rpx;
-}
-.time-separator {
-  color: #333;
-  font-size: 28rpx;
-  font-weight: bold;
-  margin: 0 4rpx;
-}
-.flash-scroll {
-  white-space: nowrap;
-}
-.flash-list {
-  display: inline-flex;
-}
-.flash-item {
-  width: 260rpx;
-  margin-right: 20rpx;
-  display: inline-block;
-}
-.flash-image {
-  width: 260rpx;
-  height: 260rpx;
-  border-radius: 12rpx;
-}
-.flash-info {
-  padding: 12rpx 0;
-}
-.flash-name {
-  font-size: 26rpx;
-  color: #333;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.flash-price-wrap {
-  display: flex;
-  align-items: baseline;
-  margin-top: 8rpx;
-}
-.flash-price {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #ff4444;
-}
-.flash-original {
-  font-size: 22rpx;
-  color: #999;
-  text-decoration: line-through;
-  margin-left: 8rpx;
 }
 </style>

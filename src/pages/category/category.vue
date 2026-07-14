@@ -1,187 +1,81 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { getSeafoodCategoriesAPI, getSeafoodItemsAPI } from '@/services/seafood'
+import type { SeafoodCategory, SeafoodItem } from '@/types/seafood'
+import { getSafeAreaInsets } from '@/utils/system'
 
 const safeAreaTop = ref(0)
+const categoryList = ref<SeafoodCategory[]>([])
+const goodsList = ref<SeafoodItem[]>([])
+const isLoading = ref(true)
 
-onMounted(() => {
+onLoad(async () => {
   try {
-    const systemInfo = uni.getSystemInfoSync()
-    if (systemInfo.safeAreaInsets) {
-      safeAreaTop.value = systemInfo.safeAreaInsets.top || 0
-    }
+    const safeAreaInsets = getSafeAreaInsets()
+    safeAreaTop.value = safeAreaInsets.top || 0
   } catch (e) {
     console.error('获取系统信息失败:', e)
   }
+  
+  try {
+    const [categoryRes, goodsRes] = await Promise.all([
+      getSeafoodCategoriesAPI(),
+      getSeafoodItemsAPI({ page: 1, pageSize: 8 })
+    ])
+    categoryList.value = categoryRes.result
+    goodsList.value = goodsRes.result.items
+  } catch (error) {
+    console.error('分类数据加载失败:', error)
+  } finally {
+    isLoading.value = false
+  }
 })
-
-const primaryCategories = ref([
-  { id: 1, name: '鱼类' },
-  { id: 2, name: '虾蟹' },
-  { id: 3, name: '贝类' },
-  { id: 4, name: '海鲜干货' },
-  { id: 5, name: '冷冻水产' },
-  { id: 6, name: '鲜肉类' },
-  { id: 7, name: '果蔬' },
-  { id: 8, name: '调料' },
-])
 
 const activeIndex = ref(0)
 
-const secondaryCategoriesMap = ref<Record<number, {
-  id: number
-  title: string
-  subtitle: string
-  items: { id: number; name: string; price: number; image: string }[]
-}[]>>({
-  1: [
-    {
-      id: 101,
-      title: '深海臻选',
-      subtitle: '进口深海鱼·空运直达',
-      items: [
-        { id: 1, name: '深海三文鱼', price: 68, image: 'https://aka.doubaocdn.com/s/FmE21wgyho' },
-        { id: 4, name: '挪威鳕鱼', price: 88, image: 'https://aka.doubaocdn.com/s/0uP11wgyho' },
-        { id: 7, name: '挪威三文鱼', price: 88, image: 'https://aka.doubaocdn.com/s/FmE21wgyho' },
-        { id: 8, name: '阿拉斯加鳕鱼', price: 78, image: 'https://aka.doubaocdn.com/s/0uP11wgyho' },
-      ],
-    },
-    {
-      id: 102,
-      title: '国产鲜鱼',
-      subtitle: '当日捕捞·新鲜到家',
-      items: [
-        { id: 3, name: '鲜活鲈鱼', price: 35, image: 'https://aka.doubaocdn.com/s/bI8m1wgyho' },
-        { id: 201, name: '带鱼', price: 28, image: 'https://aka.doubaocdn.com/s/bI8m1wgyho' },
-        { id: 202, name: '黄花鱼', price: 45, image: 'https://aka.doubaocdn.com/s/bI8m1wgyho' },
-        { id: 204, name: '罗非鱼', price: 16, image: 'https://aka.doubaocdn.com/s/bI8m1wgyho' },
-      ],
-    },
-  ],
-  2: [
-    {
-      id: 201,
-      title: '鲜虾直达',
-      subtitle: '活冻锁鲜·Q弹饱满',
-      items: [
-        { id: 2, name: '渤海大虾', price: 58, image: 'https://aka.doubaocdn.com/s/yFKn1wgyho' },
-        { id: 205, name: '厄瓜多尔白虾', price: 78, image: 'https://aka.doubaocdn.com/s/yFKn1wgyho' },
-        { id: 206, name: '青虾仁', price: 45, image: 'https://aka.doubaocdn.com/s/yFKn1wgyho' },
-        { id: 207, name: '皮皮虾', price: 68, image: 'https://aka.doubaocdn.com/s/yFKn1wgyho' },
-      ],
-    },
-    {
-      id: 202,
-      title: '蟹中臻品',
-      subtitle: '膏满黄肥·肉质鲜美',
-      items: [
-        { id: 5, name: '鲜活龙虾', price: 168, image: 'https://aka.doubaocdn.com/s/Itn71wgyho' },
-        { id: 6, name: '帝王蟹', price: 298, image: 'https://aka.doubaocdn.com/s/ykpS1wgyho' },
-        { id: 9, name: '大闸蟹', price: 128, image: 'https://aka.doubaocdn.com/s/ykpS1wgyho' },
-        { id: 208, name: '红虾', price: 58, image: 'https://aka.doubaocdn.com/s/yFKn1wgyho' },
-      ],
-    },
-  ],
-  3: [
-    {
-      id: 301,
-      title: '鲜活贝类',
-      subtitle: '现捞现发·鲜嫩多汁',
-      items: [
-        { id: 10, name: '扇贝肉', price: 38, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-        { id: 210, name: '生蚝', price: 28, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-        { id: 209, name: '鲍鱼', price: 98, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-        { id: 213, name: '鱿鱼干', price: 45, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-      ],
-    },
-  ],
-  4: [
-    {
-      id: 401,
-      title: '海味干货',
-      subtitle: '日晒风干·原汁原味',
-      items: [
-        { id: 211, name: '虾仁干', price: 68, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-        { id: 212, name: '墨鱼干', price: 58, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-        { id: 213, name: '鱿鱼干', price: 45, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-        { id: 214, name: '瑶柱', price: 128, image: 'https://aka.doubaocdn.com/s/zr6j1wgyho' },
-      ],
-    },
-  ],
-  5: [
-    {
-      id: 501,
-      title: '速冻海鲜',
-      subtitle: '急速锁鲜·留住营养',
-      items: [
-        { id: 215, name: '冷冻虾仁', price: 38, image: 'https://aka.doubaocdn.com/s/hCua1wgyho' },
-        { id: 216, name: '冷冻三文鱼排', price: 58, image: 'https://aka.doubaocdn.com/s/hCua1wgyho' },
-        { id: 217, name: '冷冻鳕鱼块', price: 45, image: 'https://aka.doubaocdn.com/s/hCua1wgyho' },
-        { id: 218, name: '冷冻扇贝柱', price: 35, image: 'https://aka.doubaocdn.com/s/hCua1wgyho' },
-      ],
-    },
-  ],
-  6: [
-    {
-      id: 601,
-      title: '新鲜肉类',
-      subtitle: '精选好肉·品质保障',
-      items: [
-        { id: 219, name: '五花肉', price: 32, image: 'https://aka.doubaocdn.com/s/fmN31wgyho' },
-        { id: 220, name: '排骨', price: 42, image: 'https://aka.doubaocdn.com/s/fmN31wgyho' },
-        { id: 219, name: '五花肉', price: 32, image: 'https://aka.doubaocdn.com/s/fmN31wgyho' },
-        { id: 220, name: '排骨', price: 42, image: 'https://aka.doubaocdn.com/s/fmN31wgyho' },
-      ],
-    },
-  ],
-  7: [
-    {
-      id: 701,
-      title: '新鲜果蔬',
-      subtitle: '产地直发·绿色健康',
-      items: [
-        { id: 221, name: '西兰花', price: 8, image: 'https://aka.doubaocdn.com/s/1g461wgyho' },
-        { id: 222, name: '胡萝卜', price: 6, image: 'https://aka.doubaocdn.com/s/1g461wgyho' },
-        { id: 221, name: '西兰花', price: 8, image: 'https://aka.doubaocdn.com/s/1g461wgyho' },
-        { id: 222, name: '胡萝卜', price: 6, image: 'https://aka.doubaocdn.com/s/1g461wgyho' },
-      ],
-    },
-  ],
-  8: [
-    {
-      id: 801,
-      title: '海鲜调料',
-      subtitle: '烹饪好帮手·提鲜增香',
-      items: [
-        { id: 223, name: '海鲜酱油', price: 18, image: 'https://aka.doubaocdn.com/s/eouS1wgyho' },
-        { id: 224, name: '蒸鱼豉油', price: 16, image: 'https://aka.doubaocdn.com/s/eouS1wgyho' },
-        { id: 223, name: '海鲜酱油', price: 18, image: 'https://aka.doubaocdn.com/s/eouS1wgyho' },
-        { id: 224, name: '蒸鱼豉油', price: 16, image: 'https://aka.doubaocdn.com/s/eouS1wgyho' },
-      ],
-    },
-  ],
+const currentSecondaryCategories = computed(() => {
+  const category = categoryList.value[activeIndex.value]
+  if (!category || goodsList.value.length === 0) return []
+  
+  const startIndex = activeIndex.value * 4
+  const categoryGoods = goodsList.value.slice(startIndex, startIndex + 8)
+  
+  const panelCount = Math.ceil(categoryGoods.length / 4)
+  return Array.from({ length: panelCount }, (_, idx) => ({
+    id: Number(category.id) * 100 + idx + 1,
+    title: `${category.name}精选`,
+    subtitle: '深海直供·鲜享美味',
+    items: categoryGoods.slice(idx * 4, idx * 4 + 4).map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+    })),
+  }))
 })
-
-const currentSecondaryCategories = ref(secondaryCategoriesMap.value[1] || [])
 
 const selectPrimary = (index: number) => {
   activeIndex.value = index
-  const categoryId = primaryCategories.value[index]?.id
-  currentSecondaryCategories.value = secondaryCategoriesMap.value[categoryId] || secondaryCategoriesMap.value[1] || []
+}
+
+const onGoSearch = () => {
+  uni.switchTab({ url: '/pages/index/index' })
 }
 </script>
 
 <template>
   <view class="viewport">
-    <view class="search" :style="{ paddingTop: safeAreaTop + 'px' }">
+    <view class="search" :style="{ paddingTop: safeAreaTop + 'px' }" @tap="onGoSearch">
       <view class="input">
-        <text class="search-icon"></text>
-        <text class="search-text">搜索海鲜水产</text>
+        <text class="search-icon">🔍</text>
+        <text class="search-text">搜索水产品</text>
       </view>
     </view>
     <view class="categories">
       <scroll-view class="primary" scroll-y>
         <view
-          v-for="(item, index) in primaryCategories"
+          v-for="(item, index) in categoryList"
           :key="item.id"
           class="item"
           :class="{ active: index === activeIndex }"
@@ -208,7 +102,7 @@ const selectPrimary = (index: number) => {
                   hover-class="none"
                   :url="`/pages/goods/goods?id=${goods.id}`"
                 >
-                  <image class="goods-image" mode="aspectFill" :src="goods.image"></image>
+                  <image class="goods-image" mode="aspectFill" lazy-load :src="goods.image"></image>
                   <view class="goods-info">
                     <text class="goods-name">{{ goods.name }}</text>
                     <text class="goods-price">¥{{ goods.price }}</text>

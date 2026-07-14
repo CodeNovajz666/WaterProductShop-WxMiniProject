@@ -21,14 +21,7 @@
 				"navigationBarTitleText": "首页"
 			}
 		},
-		{
-			"path": "pages/category/category",
-			"style": {
-				"navigationStyle": "custom",
-				"navigationBarTextStyle": "white",
-				"navigationBarTitleText": "分类"
-			}
-		},
+
 		{
 			"path": "pages/shop/shop",
 			"style": {
@@ -54,19 +47,95 @@
 		{
 			"path": "pages/hot/hot",
 			"style": {
-				"navigationBarTitleText": "热门推荐"
+				"navigationBarTitleText": "水产推荐"
+			}
+		},
+		{
+			"path": "pages/category/category",
+			"style": {
+				"navigationBarTitleText": "水产分类"
 			}
 		},
 		{
 			"path": "pages/goods/goods",
 			"style": {
-				"navigationBarTitleText": "商品详情"
+				"navigationBarTitleText": "水产详情"
+			}
+		},
+		{
+			"path": "pages/api-docs/api-docs",
+			"style": {
+				"navigationBarTitleText": "API文档"
+			}
+		},
+		{
+			"path": "pages/order/order-list",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "我的订单"
+			}
+		},
+		{
+			"path": "pages/ugc-detail/ugc-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "分享详情"
+			}
+		},
+		{
+			"path": "pages/ugc-list/ugc-list",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "用户分享"
+			}
+		},
+		{
+			"path": "pages/ugc-post/ugc-post",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "发布分享"
+			}
+		},
+		{
+			"path": "pages/my-comments/my-comments",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "我的评价"
+			}
+		},
+		{
+			"path": "pages/my-coupons/my-coupons",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "我的优惠码"
+			}
+		},
+		{
+			"path": "pages/checkout/checkout",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "确认订单"
+			}
+		},
+		{
+			"path": "pages/admin/admin",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "企业端管理"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
+		"navigationBarTitleText": "鲜渔岛",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
 	},
@@ -83,12 +152,7 @@
 				"iconPath": "static/tabs/home_default.png",
 				"selectedIconPath": "static/tabs/home_selected.png"
 			},
-			{
-				"text": "分类",
-				"pagePath": "pages/category/category",
-				"iconPath": "static/tabs/category_default.png",
-				"selectedIconPath": "static/tabs/category_selected.png"
-			},
+
 			{
 				"text": "购物车",
 				"pagePath": "pages/shop/shop",
@@ -134,6 +198,22 @@
 					"path": "address-form/address-form",
 					"style": {
 						"navigationBarTitleText": ""
+					}
+				},
+				{
+					"path": "favorites/favorites",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTextStyle": "white",
+						"navigationBarTitleText": "我的收藏"
+					}
+				},
+				{
+					"path": "help/help",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTextStyle": "white",
+						"navigationBarTitleText": "帮助中心"
 					}
 				}
 			]

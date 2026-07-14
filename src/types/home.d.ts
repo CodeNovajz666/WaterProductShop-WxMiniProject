@@ -2,6 +2,8 @@
  * 类型声明
  * 首页 广告区域数据类型
  */
+import type { GoodsItem } from './global'
+
 export type BannerItem = {
     /**跳转链接 */
     hrefurl: string

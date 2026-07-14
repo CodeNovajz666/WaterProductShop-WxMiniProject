@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { getHomeGoodsGuessLikeAPI } from '@/services/home'
-import type { PageParams } from '@/types/global'
-import type { GuessItem } from '@/types/home'
+import { getSeafoodItemsAPI } from '@/services/seafood'
+import type { SeafoodItem } from '@/types/seafood'
 import { onMounted, ref } from 'vue'
 
-const pageParams: Required<PageParams> = {
+const pageParams = {
   page: 1,
   pageSize: 10,
 }
 
-const guessList = ref<GuessItem[]>([])
+const guessList = ref<SeafoodItem[]>([])
 const finish = ref(false)
 
 const getHomeGoodsGuessLikeData = async () => {
   if (finish.value === true) {
     return uni.showToast({ icon: 'none', title: '没有更多数据~' })
   }
-  const res = await getHomeGoodsGuessLikeAPI(pageParams)
-  guessList.value.push(...res.result.items)
-  if (pageParams.page < res.result.pages) {
+  const res = await getSeafoodItemsAPI(pageParams)
+  const newItems = res.result.items
+  guessList.value.push(...newItems)
+  if (pageParams.page * pageParams.pageSize < res.result.total) {
     pageParams.page++
   } else {
     finish.value = true
@@ -52,7 +52,7 @@ defineExpose({
       :key="item.id"
       :url="`/pages/goods/goods?id=${item.id}`"
     >
-      <image class="image" mode="aspectFill" :src="item.picture"></image>
+      <image class="image" mode="aspectFill" lazy-load :src="item.image"></image>
       <view class="name">{{ item.name }}</view>
       <view class="price">
         <text class="small">¥</text>

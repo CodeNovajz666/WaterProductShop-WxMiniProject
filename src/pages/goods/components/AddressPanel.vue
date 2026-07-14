@@ -1,34 +1,84 @@
 <script setup lang="ts">
-//
+import type { AddressItem } from '@/types/address'
+import { getMemberAddressAPI } from '@/services/address'
+import { useAddressStore } from '@/stores/modules/address'
+import { ref, onMounted } from 'vue'
+
+// 选中的地址 ID
+const selectedId = ref<string>('')
+
+// 地址列表
+const addressList = ref<AddressItem[]>([])
+const loading = ref(false)
+
+// 获取地址列表
+const getAddressList = async () => {
+  loading.value = true
+  try {
+    const res = await getMemberAddressAPI()
+    addressList.value = res.result
+    // 默认选中默认地址或第一条
+    const defaultAddr = addressList.value.find((a) => a.isDefault === 1)
+    selectedId.value = defaultAddr?.id || addressList.value[0]?.id || ''
+  } catch {
+    addressList.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 选择地址
+const onSelectAddress = (item: AddressItem) => {
+  selectedId.value = item.id
+  const addressStore = useAddressStore()
+  addressStore.changeSelectedAddress(item)
+  emit('close')
+}
+
+// 新建地址
+const onNewAddress = () => {
+  uni.navigateTo({ url: '/pagesMember/address-form/address-form' })
+}
+
+// 关闭面板
+const emit = defineEmits<{
+  (e: 'close'): void
+}>()
+
+const onClose = () => {
+  emit('close')
+}
+
+onMounted(() => {
+  getAddressList()
+})
 </script>
 
 <template>
   <view class="address-panel">
     <!-- 关闭按钮 -->
-    <text class="close icon-close"></text>
+    <text class="close icon-close" @tap="onClose"></text>
     <!-- 标题 -->
     <view class="title">配送至</view>
     <!-- 内容 -->
     <view class="content">
-      <view class="item">
-        <view class="user">李明 13824686868</view>
-        <view class="address">北京市顺义区后沙峪地区安平北街6号院</view>
-        <text class="icon icon-checked"></text>
+      <view v-if="loading" class="loading-tip">
+        <text class="tip-text">加载中...</text>
       </view>
-      <view class="item">
-        <view class="user">王东 13824686868</view>
-        <view class="address">北京市顺义区后沙峪地区安平北街6号院</view>
-        <text class="icon icon-ring"></text>
+      <view v-else-if="addressList.length === 0" class="empty-tip">
+        <text class="tip-text">暂无收货地址</text>
       </view>
-      <view class="item">
-        <view class="user">张三 13824686868</view>
-        <view class="address">北京市朝阳区孙河安平北街6号院</view>
-        <text class="icon icon-ring"></text>
+      <view v-else v-for="item in addressList" :key="item.id" class="item" @tap="onSelectAddress(item)">
+        <view class="user">
+          {{ item.receiver }} {{ item.contact }}
+          <text v-if="item.isDefault" class="default-tag">默认</text>
+        </view>
+        <view class="address">{{ item.fullLocation }} {{ item.address }}</view>
+        <text class="icon" :class="selectedId === item.id ? 'icon-checked' : 'icon-ring'"></text>
       </view>
     </view>
     <view class="footer">
-      <view class="button primary"> 新建地址 </view>
-      <view v-if="false" class="button primary">确定</view>
+      <view class="button primary" @tap="onNewAddress">新建地址</view>
     </view>
   </view>
 </template>
@@ -55,6 +105,9 @@
   position: absolute;
   right: 24rpx;
   top: 24rpx;
+  font-size: 32rpx;
+  color: #999;
+  z-index: 1;
 }
 
 .content {
@@ -64,11 +117,15 @@
   padding: 20rpx;
   .item {
     padding: 30rpx 50rpx 30rpx 60rpx;
-    background-size: 40rpx;
-    background-repeat: no-repeat;
-    background-position: 0 center;
-    background-image: url(https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/locate.png);
     position: relative;
+    &::before {
+      content: '📍';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 36rpx;
+    }
   }
   .icon {
     color: #999;
@@ -88,10 +145,31 @@
     font-size: 28rpx;
     color: #444;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+  }
+  .default-tag {
+    font-size: 20rpx;
+    color: #fff;
+    background: #27ba9b;
+    padding: 2rpx 12rpx;
+    border-radius: 6rpx;
+    margin-left: 16rpx;
   }
   .address {
     font-size: 26rpx;
     color: #666;
+    margin-top: 8rpx;
+  }
+}
+
+.loading-tip,
+.empty-tip {
+  text-align: center;
+  padding: 60rpx 0;
+  .tip-text {
+    font-size: 28rpx;
+    color: #999;
   }
 }
 
@@ -115,10 +193,6 @@
   .primary {
     color: #fff;
     background-color: #27ba9b;
-  }
-
-  .secondary {
-    background-color: #ffa868;
   }
 }
 </style>

@@ -36,4 +36,6 @@ export type GoodsItem = {
   picture: string
   /** 商品价格 */
   price: number
+  /** 商品原价 */
+  oldPrice?: number
 }

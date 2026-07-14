@@ -1,29 +1,37 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { postLoginWxMinAPI, postLoginWxMinSimpleAPI } from '@/services/login'
 import { useMemberStore } from '@/stores'
-import type { LoginResult } from '@/types/member'
+import type { LoginResult, UserRole } from '@/types/member'
 import { onLoad } from '@dcloudio/uni-app'
+import { MOCK_USER, MOCK_ENTERPRISE } from '@/config/constants'
+
+// 当前选中的登录角色
+const activeRole = ref<UserRole>('user')
+
+// 企业端手机号
+const enterprisePhone = ref(MOCK_ENTERPRISE.PHONE)
 
 // #ifdef MP-WEIXIN
 // 获取code登录凭证
 let code = ''
 onLoad(async () => {
-  // 替换为 uni.login，符合uni-app跨端规范
   const res = await uni.login()
   code = res.code
 })
 // #endif
 
-// 获取用户手机号码-企业
+// 切换角色
+const switchRole = (role: UserRole) => {
+  activeRole.value = role
+}
+
+// 获取用户手机号码-微信授权
 const onGetPhoneNumber: UniHelper.ButtonOnGetphonenumber = async (ev) => {
   const encryptedData = ev.detail!.encryptedData!
   const iv = ev.detail?.iv!
   try {
-    const res = await postLoginWxMinAPI({
-      code,
-      encryptedData,
-      iv
-    })
+    const res = await postLoginWxMinAPI({ code, encryptedData, iv }, activeRole.value)
     loginSuccess(res.result)
   } catch (e) {
     uni.showToast({ icon: 'none', title: '登录失败，请重试' })
@@ -33,7 +41,22 @@ const onGetPhoneNumber: UniHelper.ButtonOnGetphonenumber = async (ev) => {
 // 模拟快捷登录
 const onGetPhoneNumberSimple = async () => {
   try {
-    const res = await postLoginWxMinSimpleAPI('13298745612')
+    const phone = activeRole.value === 'enterprise' ? enterprisePhone.value : MOCK_USER.PHONE
+    const res = await postLoginWxMinSimpleAPI(phone, activeRole.value)
+    loginSuccess(res.result)
+  } catch (e) {
+    uni.showToast({ icon: 'none', title: '登录失败，请重试' })
+  }
+}
+
+// 企业端登录
+const onEnterpriseLogin = async () => {
+  if (!enterprisePhone.value.trim()) {
+    uni.showToast({ icon: 'none', title: '请输入企业账号手机号' })
+    return
+  }
+  try {
+    const res = await postLoginWxMinSimpleAPI(enterprisePhone.value, 'enterprise')
     loginSuccess(res.result)
   } catch (e) {
     uni.showToast({ icon: 'none', title: '登录失败，请重试' })
@@ -42,52 +65,106 @@ const onGetPhoneNumberSimple = async () => {
 
 // 登录成功
 const loginSuccess = (profile: LoginResult) => {
-  // 保存会员信息
   const memberStore = useMemberStore()
   memberStore.setProfile(profile)
-  // 成功提示
-  uni.showToast({ icon: 'success', title: '登录成功' })
-  // 跳转首页（立即执行，延迟30ms确保toast显示）
+  uni.showToast({
+    icon: 'success',
+    title: profile.role === 'enterprise' ? '企业端登录成功' : '登录成功',
+  })
   setTimeout(() => {
     uni.switchTab({ url: '/pages/index/index' })
   }, 30)
 }
+
+// 角色描述
+const roleDesc = computed(() => {
+  return activeRole.value === 'enterprise'
+    ? '企业端可上架商品、管理优惠码、查看订单'
+    : '用户端可浏览商品、下单购买、分享赚优惠'
+})
 </script>
 
 <template>
   <view class="viewport">
     <view class="logo">
-      <image
-        src="/static/images/logo_icon.png"
-      ></image>
+      <image src="/static/images/logo_icon.png"></image>
+      <text class="app-name">鲜渔岛</text>
     </view>
-    <view class="login">
-      <!-- 网页端表单登录 -->
-      <!-- #ifdef H5 -->
-      <input class="input" type="text" placeholder="请输入用户名/手机号码" />
-      <input class="input" type="text" password placeholder="请输入密码" />
-      <button class="button phone">登录</button>
-      <!-- #endif -->
 
-      <!-- 小程序端授权登录 -->
-      <!-- #ifdef MP-WEIXIN -->
-      <button class="button phone" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
-        <text class="icon icon-phone"></text>
-        手机号快捷登录
-      </button>
-      <!-- #endif -->
-      <view class="extra">
-        <view class="caption">
-          <text>其他登录方式</text>
-        </view>
-        <view class="options">
-          <!-- 通用模拟登录 -->
-          <button @tap="onGetPhoneNumberSimple">
-            <text class="icon icon-phone">模拟快捷登录</text>
-          </button>
-        </view>
+    <!-- 角色切换 Tab -->
+    <view class="role-tabs">
+      <view
+        class="role-tab"
+        :class="{ active: activeRole === 'user' }"
+        @tap="switchRole('user')"
+      >
+        <text class="tab-icon">👤</text>
+        <text class="tab-text">用户端</text>
       </view>
-      <view class="tips">登录/注册即视为你同意《服务条款》和《渔鲜汇隐私协议》</view>
+      <view
+        class="role-tab"
+        :class="{ active: activeRole === 'enterprise' }"
+        @tap="switchRole('enterprise')"
+      >
+        <text class="tab-icon">🏢</text>
+        <text class="tab-text">企业端</text>
+      </view>
+    </view>
+
+    <!-- 角色描述 -->
+    <view class="role-desc">
+      <text>{{ roleDesc }}</text>
+    </view>
+
+    <!-- 登录区 -->
+    <view class="login">
+      <!-- 用户端登录 -->
+      <template v-if="activeRole === 'user'">
+        <!-- #ifdef MP-WEIXIN -->
+        <button class="button phone" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
+          <text class="icon icon-phone"></text>
+          手机号快捷登录
+        </button>
+        <!-- #endif -->
+        <view class="extra">
+          <view class="caption">
+            <text>其他登录方式</text>
+          </view>
+          <view class="options">
+            <button @tap="onGetPhoneNumberSimple">
+              <text class="icon icon-phone">模拟快捷登录</text>
+            </button>
+          </view>
+        </view>
+      </template>
+
+      <!-- 企业端登录 -->
+      <template v-else>
+        <view class="enterprise-form">
+          <view class="form-item">
+            <text class="form-label">企业账号手机号</text>
+            <input
+              v-model="enterprisePhone"
+              class="form-input"
+              type="number"
+              placeholder="请输入企业账号手机号"
+              :maxlength="11"
+            />
+          </view>
+          <button class="button enterprise-btn" @tap="onEnterpriseLogin">
+            <text class="icon">🔐</text>
+            企业端登录
+          </button>
+          <!-- #ifdef MP-WEIXIN -->
+          <button class="button phone" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
+            <text class="icon icon-phone"></text>
+            微信授权登录
+          </button>
+          <!-- #endif -->
+        </view>
+      </template>
+
+      <view class="tips">登录/注册即视为你同意《服务条款》和《鲜渔岛隐私协议》</view>
     </view>
   </view>
 </template>
@@ -105,43 +182,95 @@ page {
 }
 
 .logo {
-  flex: 1;
   text-align: center;
+  margin-top: 10vh;
+
   image {
-    width: 220rpx;
-    height: 220rpx;
-    margin-top: 15vh;
+    width: 160rpx;
+    height: 160rpx;
+  }
+
+  .app-name {
+    display: block;
+    font-size: 36rpx;
+    font-weight: bold;
+    color: #0066cc;
+    margin-top: 16rpx;
   }
 }
 
+/* 角色切换 Tab */
+.role-tabs {
+  display: flex;
+  margin: 40rpx 20rpx 0;
+  background: #f0f4f8;
+  border-radius: 16rpx;
+  padding: 8rpx;
+}
+
+.role-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
+  transition: all 0.25s ease;
+
+  .tab-icon {
+    font-size: 36rpx;
+  }
+
+  .tab-text {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #666;
+  }
+
+  &.active {
+    background: #fff;
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+
+    .tab-text {
+      color: #0066cc;
+    }
+  }
+}
+
+/* 角色描述 */
+.role-desc {
+  text-align: center;
+  padding: 24rpx 40rpx;
+  margin: 0 20rpx;
+
+  text {
+    font-size: 24rpx;
+    color: #999;
+  }
+}
+
+/* 登录区 */
 .login {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 60vh;
-  padding: 40rpx 20rpx 20rpx;
-
-  .input {
-    width: 100%;
-    height: 80rpx;
-    font-size: 28rpx;
-    border-radius: 72rpx;
-    border: 1px solid #ddd;
-    padding-left: 30rpx;
-    margin-bottom: 20rpx;
-  }
+  padding: 20rpx;
 
   .button {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 80rpx;
-    font-size: 28rpx;
+    height: 88rpx;
+    font-size: 30rpx;
     border-radius: 72rpx;
     color: #fff;
+    margin-bottom: 24rpx;
+
     .icon {
-      font-size: 40rpx;
-      margin-right: 6rpx;
+      font-size: 36rpx;
+      margin-right: 10rpx;
     }
   }
 
@@ -149,8 +278,8 @@ page {
     background-color: #28bb9c;
   }
 
-  .wechat {
-    background-color: #06c05f;
+  .enterprise-btn {
+    background: linear-gradient(135deg, #0099cc 0%, #0066ff 100%);
   }
 
   .extra {
@@ -205,9 +334,29 @@ page {
         border-radius: 50%;
       }
     }
-    .icon-weixin::before {
-      border-color: #06c05f;
-      color: #06c05f;
+  }
+}
+
+/* 企业端表单 */
+.enterprise-form {
+  .form-item {
+    margin-bottom: 30rpx;
+
+    .form-label {
+      display: block;
+      font-size: 26rpx;
+      color: #555;
+      margin-bottom: 12rpx;
+    }
+
+    .form-input {
+      width: 100%;
+      height: 88rpx;
+      font-size: 30rpx;
+      border-radius: 16rpx;
+      border: 2rpx solid #ddd;
+      padding-left: 24rpx;
+      box-sizing: border-box;
     }
   }
 }

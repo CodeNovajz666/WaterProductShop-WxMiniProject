@@ -1,3 +1,6 @@
+/** 用户角色 */
+export type UserRole = 'user' | 'enterprise'
+
 /** 通用的用户信息 */
 type BaseProfile = {
   /** 用户ID */
@@ -8,6 +11,8 @@ type BaseProfile = {
   account: string
   /** 昵称 */
   nickname?: string
+  /** 用户角色：user=用户端，enterprise=企业端 */
+  role?: UserRole
 }
 
 /** 小程序登录 登录用户信息 */

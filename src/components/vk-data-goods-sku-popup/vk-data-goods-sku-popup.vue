@@ -150,6 +150,7 @@
 </template>
 
 <script>
+import { getSafeAreaInsets } from '@/utils/system'
 /* eslint-disable */
 var vk // vk依赖
 var goodsCache = {} // 本地商品缓存
@@ -502,7 +503,7 @@ export default {
       that.open()
     }
     // 获取屏幕边界到安全区域距离
-    const {safeAreaInsets} = uni.getSystemInfoSync()
+    const safeAreaInsets = getSafeAreaInsets()
     // 底部安全距离
     that.safeBottom = safeAreaInsets.bottom
   },

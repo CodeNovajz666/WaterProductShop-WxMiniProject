@@ -1,26 +1,94 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import type { WaterProductGuessInstance } from '@/types/components'
 import WaterProductGuess from '@/components/WaterProductGuess.vue'
 import { useMemberStore } from '@/stores'
+import { getOrderCountsAPI } from '@/services/order'
+import { getFavoriteCountAPI } from '@/services/favorites'
+import { getUserCouponCountAPI } from '@/services/seafood'
+import { onShow } from '@dcloudio/uni-app'
+import { getSafeAreaInsets } from '@/utils/system'
 
-const { safeAreaInsets } = uni.getSystemInfoSync()
+const safeAreaInsets = getSafeAreaInsets()
 
-const orderTypes = [
-  { type: 1, text: '待付款', icon: 'icon-currency' },
-  { type: 2, text: '待发货', icon: 'icon-gift' },
-  { type: 3, text: '待收货', icon: 'icon-check' },
-  { type: 4, text: '待评价', icon: 'icon-comment' },
-]
+// 订单类型（角标数量动态获取）
+const orderTypes = reactive([
+  { type: 1, text: '待付款', icon: 'icon-currency', badge: 0 },
+  { type: 2, text: '待发货', icon: 'icon-gift', badge: 0 },
+  { type: 3, text: '待收货', icon: 'icon-check', badge: 0 },
+  { type: 4, text: '待评价', icon: 'icon-comment', badge: 0 },
+  { type: 6, text: '售后', icon: 'icon-help', badge: 0 },
+])
 
-const menuItems = [
-  { id: 1, icon: 'icon-location', text: '收货地址', url: '/pagesMember/address/address' },
-  { id: 2, icon: 'icon-star', text: '我的收藏', url: '/pagesMember/favorites/favorites' },
-  { id: 3, icon: 'icon-help', text: '帮助中心', url: '/pagesMember/help/help' },
-]
+// 菜单项（收藏数量动态获取）
+const menuItems = reactive([
+  { id: 1, icon: 'icon-location', text: '收货地址', url: '/pagesMember/address/address', badge: 0 },
+  { id: 2, icon: 'icon-star', text: '我的收藏', url: '/pagesMember/favorites/favorites', badge: 0 },
+  { id: 3, icon: 'icon-comment', text: '我的评价', url: '/pages/my-comments/my-comments', badge: 0 },
+  { id: 4, icon: 'icon-currency', text: '我的优惠码', url: '/pages/my-coupons/my-coupons', badge: 0 },
+  { id: 5, icon: 'icon-help', text: '帮助中心', url: '/pagesMember/help/help', badge: 0 },
+  { id: 6, icon: 'icon-settings', text: '企业端管理', url: '/pages/admin/admin', badge: 0 },
+])
 
 const memberStore = useMemberStore()
 const guessRef = ref<WaterProductGuessInstance>()
+
+// 是否为企业端用户
+const isEnterprise = computed(() => memberStore.profile?.role === 'enterprise')
+
+// 根据角色过滤菜单项（企业端管理仅企业端可见）
+const visibleMenuItems = computed(() => {
+  return menuItems.filter((item) => {
+    if (item.id === 6) return isEnterprise.value
+    return true
+  })
+})
+
+// 获取订单各状态数量
+const loadOrderCounts = async () => {
+  try {
+    const counts = await getOrderCountsAPI()
+    orderTypes.forEach((item) => {
+      if (item.type >= 1 && item.type <= 4) {
+        item.badge = counts[item.type] || 0
+      }
+    })
+  } catch {
+    // 静默失败，角标保持 0
+  }
+}
+
+// 获取收藏数量
+const loadFavoriteCount = async () => {
+  try {
+    const count = await getFavoriteCountAPI()
+    const favItem = menuItems.find((i) => i.id === 2)
+    if (favItem) favItem.badge = count
+  } catch {
+    // 静默失败
+  }
+}
+
+// 获取可用优惠码数量
+const loadCouponCount = async () => {
+  try {
+    const res = await getUserCouponCountAPI()
+    const couponItem = menuItems.find((i) => i.id === 4)
+    if (couponItem) couponItem.badge = res.result
+  } catch {
+    // 静默失败
+  }
+}
+
+// 刷新页面数据
+const refreshData = () => {
+  loadOrderCounts()
+  loadFavoriteCount()
+  loadCouponCount()
+  // 重置猜你喜欢列表并重新加载第一页数据
+  guessRef.value?.resetData()
+  guessRef.value?.getMore()
+}
 
 const onScrolltolower = () => {
   guessRef.value?.getMore()
@@ -29,6 +97,11 @@ const onScrolltolower = () => {
 const onMenuItemTap = (url: string) => {
   uni.navigateTo({ url })
 }
+
+// 页面显示时刷新数据
+onShow(() => {
+  refreshData()
+})
 </script>
 
 <template>
@@ -43,7 +116,15 @@ const onMenuItemTap = (url: string) => {
           ></image>
         </navigator>
         <view class="meta">
-          <view class="nickname"> {{ memberStore.profile.nickname || memberStore.profile.account }} </view>
+          <view class="nickname-row">
+            <view class="nickname"> {{ memberStore.profile.nickname || memberStore.profile.account }} </view>
+            <view v-if="isEnterprise" class="role-badge enterprise">
+              <text>企业端</text>
+            </view>
+            <view v-else class="role-badge user">
+              <text>用户端</text>
+            </view>
+          </view>
           <navigator class="extra" url="/pagesMember/profile/profile" hover-class="none">
             <text class="update">更新头像昵称</text>
           </navigator>
@@ -74,7 +155,7 @@ const onMenuItemTap = (url: string) => {
     <view class="orders">
       <view class="title">
         我的订单
-        <navigator class="navigator" url="/pagesOrder/list/list?type=0" hover-class="none">
+        <navigator class="navigator" url="/pages/order/order-list?type=0" hover-class="none">
           查看全部订单<text class="icon-right"></text>
         </navigator>
       </view>
@@ -83,25 +164,28 @@ const onMenuItemTap = (url: string) => {
           v-for="item in orderTypes"
           :key="item.type"
           :class="item.icon"
-          :url="`/pagesOrder/list/list?type=${item.type}`"
+          :url="`/pages/order/order-list?type=${item.type}`"
           class="navigator"
           hover-class="none"
         >
-          {{ item.text }}
+          <view class="navigator-content">
+            {{ item.text }}
+            <view v-if="item.badge > 0" class="badge">{{ item.badge }}</view>
+          </view>
         </navigator>
-        <button class="contact icon-handset" open-type="contact">售后</button>
       </view>
     </view>
 
     <view class="menu">
       <view
-        v-for="item in menuItems"
+        v-for="item in visibleMenuItems"
         :key="item.id"
         class="menu-item"
         @tap="onMenuItemTap(item.url)"
       >
         <text :class="['menu-icon', item.icon]"></text>
         <text class="menu-text">{{ item.text }}</text>
+        <text v-if="item.badge > 0" class="menu-badge">{{ item.badge }}</text>
         <text class="menu-arrow"></text>
       </view>
     </view>
@@ -159,15 +243,39 @@ page {
     margin-left: 20rpx;
   }
 
-  .nickname {
-    max-width: 350rpx;
+  .nickname-row {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
     margin-bottom: 16rpx;
+  }
+
+  .nickname {
+    max-width: 280rpx;
     font-size: 32rpx;
     font-weight: bold;
-
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .role-badge {
+    padding: 4rpx 16rpx;
+    border-radius: 8rpx;
+    flex-shrink: 0;
+
+    text {
+      font-size: 20rpx;
+      color: #fff;
+    }
+
+    &.enterprise {
+      background: linear-gradient(135deg, #0099cc 0%, #0066ff 100%);
+    }
+
+    &.user {
+      background: #28bb9c;
+    }
   }
 
   .extra {
@@ -226,8 +334,7 @@ page {
     display: flex;
     justify-content: space-between;
     padding: 40rpx 20rpx 10rpx;
-    .navigator,
-    .contact {
+    .navigator {
       text-align: center;
       font-size: 24rpx;
       color: #666;
@@ -237,13 +344,28 @@ page {
         color: #0099cc;
         margin-bottom: 10rpx;
       }
-    }
-    .contact {
-      padding: 0;
-      margin: 0;
-      border: 0;
-      background-color: transparent;
-      line-height: inherit;
+
+      .navigator-content {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .badge {
+        position: absolute;
+        top: -16rpx;
+        right: -24rpx;
+        min-width: 32rpx;
+        height: 32rpx;
+        padding: 0 8rpx;
+        background: #ff6b6b;
+        border-radius: 16rpx;
+        font-size: 20rpx;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
     }
   }
 }
@@ -279,6 +401,20 @@ page {
       flex: 1;
       font-size: 28rpx;
       color: #333;
+    }
+
+    .menu-badge {
+      min-width: 36rpx;
+      height: 36rpx;
+      padding: 0 10rpx;
+      margin-right: 12rpx;
+      background: #ff6b6b;
+      border-radius: 18rpx;
+      font-size: 22rpx;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .menu-arrow {
