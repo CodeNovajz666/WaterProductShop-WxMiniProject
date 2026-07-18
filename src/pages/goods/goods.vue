@@ -2,7 +2,7 @@
 import type { SeafoodItem, CouponCode, Review } from '@/types/seafood'
 import type { AddressItem } from '@/types/address'
 import type { CheckoutItem } from '@/types/order'
-import { getSeafoodItemByIdAPI, getCouponCodesAPI, getReviewsByGoodsIdAPI, claimCouponAPI } from '@/services/seafood'
+import { getSeafoodItemByIdAPI, getCouponCodesAPI, getReviewsByGoodsIdAPI, getReviewStatsAPI, claimCouponAPI } from '@/services/seafood'
 import { postMemberShopAPI, getMemberShopAPI } from '@/services/shop'
 import { isFavoritedAPI, toggleFavoriteAPI } from '@/services/favorites'
 import { getMemberAddressAPI } from '@/services/address'
@@ -12,8 +12,10 @@ import { computed, ref } from 'vue'
 import { PURCHASE_LIMITS, COUPON_CODES } from '@/config/constants'
 import AddressPanel from './components/AddressPanel.vue'
 import { getSafeAreaInsets } from '@/utils/system'
+import { useLoginGuard } from '@/utils/loginGuard'
 
 const safeAreaInsets = getSafeAreaInsets()
+const { requireLogin } = useLoginGuard()
 
 const goodsId = ref('')
 const goods = ref<SeafoodItem>()
@@ -23,6 +25,7 @@ const buyCount = ref(1)
 const couponCodeInput = ref('')
 const appliedCoupon = ref<CouponCode | null>(null)
 const goodsReviews = ref<Review[]>([])
+const reviewStats = ref({ total: 0, avgRating: 0 })
 const loading = ref(false)
 const couponList = ref<CouponCode[]>([])
 
@@ -59,13 +62,33 @@ const getGoodsByIdData = async () => {
   } finally {
     loading.value = false
   }
-  // 评价列表和收藏状态异步加载，不阻塞详情渲染
+  // 评价列表、统计和收藏状态异步加载，不阻塞详情渲染
   getReviewsByGoodsIdAPI(goodsId.value).then((res) => {
     goodsReviews.value = res.result
+  })
+  getReviewStatsAPI(goodsId.value).then((res) => {
+    reviewStats.value = res.result
   })
   isFavoritedAPI(goodsId.value).then((fav) => {
     isCollected.value = fav
   })
+}
+
+// 预览评价图片
+const onPreviewReviewImage = (current: string, urls: string[]) => {
+  uni.previewImage({ current, urls })
+}
+
+// 格式化评价时间
+const formatReviewTime = (iso: string): string => {
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  if (diff < 60 * 1000) return '刚刚'
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`
+  if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / 86400000)}天前`
+  return d.toLocaleDateString('zh-CN')
 }
 
 // 获取优惠券列表
@@ -187,6 +210,9 @@ const increaseCount = () => {
 
 // 加入购物车：优先调用后端 API，失败时降级到本地存储
 const onAddCart = async () => {
+  // 登录校验
+  if (!requireLogin()) return
+
   const skuId = `${goods.value?.id}-标准装`
   const count = buyCount.value
 
@@ -237,6 +263,9 @@ const onAddCart = async () => {
 
 // 立即购买：将商品信息存入 storage，跳转结算页
 const onBuyNow = () => {
+  // 登录校验
+  if (!requireLogin()) return
+
   if (!goods.value) return
   const buyNowItems: CheckoutItem[] = [
     {
@@ -255,6 +284,9 @@ const onBuyNow = () => {
 
 // 切换收藏状态（持久化到本地存储）
 const toggleCollect = async () => {
+  // 登录校验
+  if (!requireLogin()) return
+
   if (!goods.value) return
   const isFav = await toggleFavoriteAPI({
     id: goods.value.id,
@@ -279,6 +311,9 @@ const formatSoldCount = (count: number) => {
 }
 
 const applyCoupon = () => {
+  // 登录校验
+  if (!requireLogin()) return
+
   const code = couponCodeInput.value.trim().toUpperCase()
   if (!code) {
     uni.showToast({ title: '请输入优惠码', icon: 'none' })
@@ -532,7 +567,20 @@ onShareTimeline(() => {
         <view class="section-title">
           <text class="title-icon">⭐</text>
           <text>商品评价</text>
-          <text class="review-count">({{ goodsReviews.length }})</text>
+          <text class="review-count">({{ reviewStats.total }})</text>
+        </view>
+        <!-- 评分汇总 -->
+        <view v-if="reviewStats.total > 0" class="review-summary">
+          <view class="summary-left">
+            <text class="avg-rating">{{ reviewStats.avgRating }}</text>
+            <view class="summary-stars">
+              <text v-for="i in 5" :key="i" class="star" :class="{ active: i <= Math.round(reviewStats.avgRating) }">★</text>
+            </view>
+            <text class="summary-desc">综合评分</text>
+          </view>
+          <view class="summary-right">
+            <text class="summary-total">{{ reviewStats.total }}条评价</text>
+          </view>
         </view>
         <view v-if="goodsReviews.length > 0" class="reviews-list">
           <view v-for="review in goodsReviews" :key="review.id" class="review-item">
@@ -544,7 +592,7 @@ onShareTimeline(() => {
                   <text v-for="i in 5" :key="i" class="star" :class="{ active: i <= review.rating }">★</text>
                 </view>
               </view>
-              <text class="review-time">{{ review.createdAt }}</text>
+              <text class="review-time">{{ formatReviewTime(review.createdAt) }}</text>
             </view>
             <text class="review-content">{{ review.content }}</text>
             <view v-if="review.images.length > 0" class="review-images">
@@ -554,6 +602,7 @@ onShareTimeline(() => {
                 class="review-image"
                 :src="img"
                 mode="aspectFill"
+                @tap="onPreviewReviewImage(img, review.images)"
               />
             </view>
           </view>
@@ -1046,6 +1095,59 @@ page {
   color: #999;
   margin-left: 8rpx;
   font-weight: normal;
+}
+
+.review-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 20rpx;
+  margin-bottom: 16rpx;
+  background: linear-gradient(135deg, rgba(253, 203, 110, 0.12) 0%, rgba(255, 165, 2, 0.08) 100%);
+  border-radius: 12rpx;
+
+  .summary-left {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  .avg-rating {
+    font-size: 56rpx;
+    font-weight: bold;
+    color: #ffa502;
+    line-height: 1;
+  }
+
+  .summary-stars {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+
+    .star {
+      font-size: 24rpx;
+      color: #dfe6e9;
+
+      &.active {
+        color: #ffa502;
+      }
+    }
+  }
+
+  .summary-desc {
+    font-size: 22rpx;
+    color: #636e72;
+    margin-top: 4rpx;
+  }
+
+  .summary-right {
+    text-align: right;
+  }
+
+  .summary-total {
+    font-size: 24rpx;
+    color: #636e72;
+  }
 }
 
 .reviews-list {

@@ -67,12 +67,28 @@ export type CouponCode = {
 export type Review = {
   id: string
   goodsId: string
+  /** 评价用户 ID（mock 评价为空） */
+  userId?: string
+  /** 关联订单 ID（用户评价才有） */
+  orderId?: string
   userName: string
   avatar: string
+  /** 评分 1-5 */
   rating: number
   content: string
   images: string[]
   createdAt: string
+  /** 是否为商家默认展示的种子评价 */
+  isSeed?: boolean
+}
+
+/** 商品评价发布参数 */
+export type PostReviewParams = {
+  goodsId: string
+  orderId: string
+  rating: number
+  content: string
+  images?: string[]
 }
 
 // Order / OrderItem 类型已迁移至 ./order.d.ts，请从该文件导入

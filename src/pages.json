@@ -77,6 +77,30 @@
 			}
 		},
 		{
+			"path": "pages/order-detail/order-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "订单详情"
+			}
+		},
+		{
+			"path": "pages/logistics/logistics",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "物流详情"
+			}
+		},
+		{
+			"path": "pages/review-post/review-post",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "发表评价"
+			}
+		},
+		{
 			"path": "pages/ugc-detail/ugc-detail",
 			"style": {
 				"navigationStyle": "custom",
@@ -130,6 +154,14 @@
 				"navigationStyle": "custom",
 				"navigationBarTextStyle": "white",
 				"navigationBarTitleText": "企业端管理"
+			}
+		},
+		{
+			"path": "pages/admin-orders/admin-orders",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white",
+				"navigationBarTitleText": "订单管理"
 			}
 		}
 	],

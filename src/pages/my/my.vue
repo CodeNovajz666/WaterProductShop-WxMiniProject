@@ -100,6 +100,12 @@ const onMenuItemTap = (url: string) => {
 
 // 页面显示时刷新数据
 onShow(() => {
+  // 登录校验：未登录跳转登录页
+  if (!memberStore.profile) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    setTimeout(() => uni.navigateTo({ url: '/pages/login/login' }), 500)
+    return
+  }
   refreshData()
 })
 </script>

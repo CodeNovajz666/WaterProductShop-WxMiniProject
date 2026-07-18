@@ -242,6 +242,11 @@ const formatDiscount = (coupon: CouponCode) => {
 
 const goBack = () => uni.navigateBack()
 
+// 跳转订单管理
+const goAdminOrders = () => {
+  uni.navigateTo({ url: '/pages/admin-orders/admin-orders' })
+}
+
 onShow(() => {
   loadProductList()
   loadCouponList()
@@ -283,8 +288,24 @@ onShow(() => {
         </view>
       </view>
 
-      <!-- 商品列表 -->
+      <!-- 订单管理入口 -->
       <view class="section-header">
+        <text class="section-title">订单管理</text>
+        <text class="section-desc">处理用户订单并发货</text>
+      </view>
+      <view class="enterprise-entry" @tap="goAdminOrders">
+        <view class="entry-icon-box blue">
+          <text class="entry-icon">📋</text>
+        </view>
+        <view class="entry-info">
+          <text class="entry-title">全部订单</text>
+          <text class="entry-desc">查看待发货订单、发货操作、物流追踪</text>
+        </view>
+        <text class="entry-arrow">›</text>
+      </view>
+
+      <!-- 商品管理 -->
+      <view class="section-header" style="margin-top: 30rpx;">
         <text class="section-title">商品管理</text>
         <text class="section-desc">上架商品会同步到首页</text>
       </view>
@@ -697,6 +718,61 @@ page {
 .empty-text {
   font-size: 28rpx;
   color: #999;
+}
+
+.enterprise-entry {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+
+  &:active {
+    opacity: 0.85;
+  }
+
+  .entry-icon-box {
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &.blue {
+      background: linear-gradient(135deg, #0066cc 0%, #0099ff 100%);
+    }
+
+    .entry-icon {
+      font-size: 40rpx;
+    }
+  }
+
+  .entry-info {
+    flex: 1;
+    margin-left: 20rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+
+  .entry-title {
+    font-size: 30rpx;
+    font-weight: bold;
+    color: #2d3436;
+  }
+
+  .entry-desc {
+    font-size: 24rpx;
+    color: #636e72;
+  }
+
+  .entry-arrow {
+    font-size: 36rpx;
+    color: #b2bec3;
+  }
 }
 
 .product-list {

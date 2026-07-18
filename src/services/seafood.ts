@@ -1,6 +1,7 @@
-import type { SeafoodCategory, SeafoodItem, SeafoodBanner, UgcContent, CouponCode, Review } from '@/types/seafood'
+import type { SeafoodCategory, SeafoodItem, SeafoodBanner, UgcContent, CouponCode, Review, PostReviewParams } from '@/types/seafood'
 import { seafoodCategories, seafoodItems, seafoodBanners, ugcContents, couponCodes, reviews } from '@/data/mock'
 import { DEFAULT_AVATAR, ANONYMOUS_USERNAME, MOCK_UGC_COMMENTS, COUPON_LIMITS, UGC_LIMITS } from '@/config/constants'
+import { useMemberStore } from '@/stores'
 
 /** UGC 评论类型 */
 export type UgcComment = {
@@ -24,6 +25,57 @@ const UGC_STATS_KEY = 'ugc_stats'      // { [ugcId]: { likes, comments, views } 
 const UGC_COMMENTS_KEY = 'ugc_comments' // { [ugcId]: UgcComment[] }
 const UGC_LIKED_KEY = 'ugc_liked'       // string[] 已点赞的 UGC ID 列表
 const UGC_COLLECTED_KEY = 'ugc_collected' // string[] 已收藏的 UGC ID 列表
+
+// ====== 商品评价持久化工具 ======
+
+const GOODS_REVIEWS_KEY = 'goods_reviews' // Review[] 用户发表的商品评价
+const REVIEWED_ORDERS_KEY = 'reviewed_orders' // string[] 已评价的订单 ID 列表
+
+/** 种子评价：将 mock.ts 的静态评价统一标记为 isSeed=true */
+const seedReviews: Review[] = reviews.map((r) => ({ ...r, isSeed: true }))
+
+/** 读取用户发表的评价列表 */
+const readUserReviews = (): Review[] => {
+  try {
+    const stored = uni.getStorageSync(GOODS_REVIEWS_KEY)
+    if (stored) return JSON.parse(stored) as Review[]
+  } catch {
+    // ignore
+  }
+  return []
+}
+
+/** 写入用户发表的评价列表 */
+const writeUserReviews = (list: Review[]) => {
+  uni.setStorageSync(GOODS_REVIEWS_KEY, JSON.stringify(list))
+}
+
+/** 读取已评价的订单 ID 列表 */
+const readReviewedOrders = (): string[] => {
+  try {
+    const stored = uni.getStorageSync(REVIEWED_ORDERS_KEY)
+    if (stored) return JSON.parse(stored) as string[]
+  } catch {
+    // ignore
+  }
+  return []
+}
+
+/** 写入已评价的订单 ID 列表 */
+const writeReviewedOrders = (ids: string[]) => {
+  uni.setStorageSync(REVIEWED_ORDERS_KEY, JSON.stringify(ids))
+}
+
+/** 获取当前登录用户信息（降级到匿名） */
+const getCurrentUser = () => {
+  const memberStore = useMemberStore()
+  const profile = memberStore.profile
+  return {
+    userId: profile?.id ? String(profile.id) : `user_${Date.now()}`,
+    userName: profile?.nickname || ANONYMOUS_USERNAME,
+    avatar: profile?.avatar || DEFAULT_AVATAR,
+  }
+}
 
 /** 读取单个 UGC 的统计数据（点赞数、评论数、浏览量） */
 const readUgcStats = (ugcId: string): { likes: number; comments: number; views: number } => {
@@ -452,9 +504,135 @@ export const getUserCouponCountAPI = async () => {
 }
 
 /** 根据商品 ID 获取评价列表 */
+// ====== 商品评价 API（持久化） ======
+
+/**
+ * 获取商品评价列表
+ * 合并 mock 种子评价 + localStorage 用户评价，按时间倒序返回
+ */
 export const getReviewsByGoodsIdAPI = async (goodsId: string) => {
   await delay()
-  return { code: '0', msg: 'success', result: reviews.filter((r) => r.goodsId === goodsId) }
+  const userReviews = readUserReviews().filter((r) => r.goodsId === goodsId)
+  const seeds = seedReviews.filter((r) => r.goodsId === goodsId)
+  const all = [...userReviews, ...seeds].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )
+  return { code: '0', msg: 'success', result: all }
+}
+
+/**
+ * 获取商品评价统计（总数 + 平均评分）
+ */
+export const getReviewStatsAPI = async (goodsId: string) => {
+  await delay()
+  const userReviews = readUserReviews().filter((r) => r.goodsId === goodsId)
+  const seeds = seedReviews.filter((r) => r.goodsId === goodsId)
+  const all = [...userReviews, ...seeds]
+  const total = all.length
+  const avgRating =
+    total > 0 ? Number((all.reduce((sum, r) => sum + r.rating, 0) / total).toFixed(1)) : 0
+  return {
+    code: '0',
+    msg: 'success',
+    result: { total, avgRating },
+  }
+}
+
+/**
+ * 发布商品评价
+ * - 关联订单 ID，防止重复评价
+ * - 评价成功后写入 localStorage，并标记订单为已评价
+ */
+export const postGoodsReviewAPI = async (params: PostReviewParams) => {
+  await delay()
+
+  // 校验：同一订单只能评价一次
+  const reviewedOrders = readReviewedOrders()
+  if (reviewedOrders.includes(params.orderId)) {
+    return { code: '1', msg: '该订单已评价，无法重复评价', result: null }
+  }
+
+  // 校验内容
+  if (!params.content?.trim()) {
+    return { code: '1', msg: '请填写评价内容', result: null }
+  }
+  if (params.rating < 1 || params.rating > 5) {
+    return { code: '1', msg: '评分范围为 1-5 星', result: null }
+  }
+
+  const user = getCurrentUser()
+  const now = new Date()
+  const newReview: Review = {
+    id: `RV${now.getTime()}`,
+    goodsId: params.goodsId,
+    userId: user.userId,
+    orderId: params.orderId,
+    userName: user.userName,
+    avatar: user.avatar,
+    rating: params.rating,
+    content: params.content.trim(),
+    images: params.images || [],
+    createdAt: now.toISOString(),
+    isSeed: false,
+  }
+
+  // 写入评价列表
+  const all = readUserReviews()
+  all.unshift(newReview)
+  writeUserReviews(all)
+
+  // 标记订单已评价
+  reviewedOrders.push(params.orderId)
+  writeReviewedOrders(reviewedOrders)
+
+  return { code: '0', msg: 'success', result: newReview }
+}
+
+/**
+ * 删除商品评价
+ * - 仅可删除自己发表的评价（非种子评价）
+ * - 同步移除订单已评价标记
+ */
+export const deleteGoodsReviewAPI = async (reviewId: string) => {
+  await delay()
+  const all = readUserReviews()
+  const target = all.find((r) => r.id === reviewId)
+  if (!target) {
+    return { code: '1', msg: '评价不存在或已删除', result: null }
+  }
+  if (target.isSeed) {
+    return { code: '1', msg: '默认评价不可删除', result: null }
+  }
+
+  const filtered = all.filter((r) => r.id !== reviewId)
+  writeUserReviews(filtered)
+
+  // 移除订单已评价标记
+  if (target.orderId) {
+    const reviewedOrders = readReviewedOrders().filter((id) => id !== target.orderId)
+    writeReviewedOrders(reviewedOrders)
+  }
+
+  return { code: '0', msg: 'success', result: null }
+}
+
+/**
+ * 查询某订单是否已评价
+ */
+export const checkOrderReviewedAPI = async (orderId: string) => {
+  await delay(20)
+  const reviewed = readReviewedOrders().includes(orderId)
+  return { code: '0', msg: 'success', result: { reviewed } }
+}
+
+/**
+ * 获取当前用户发表的所有商品评价
+ */
+export const getUserGoodsReviewsAPI = async () => {
+  await delay()
+  const user = getCurrentUser()
+  const all = readUserReviews().filter((r) => r.userId === user.userId)
+  return { code: '0', msg: 'success', result: all }
 }
 
 /** 根据 ID 获取单条 UGC 内容（合并动态点赞数和评论数） */

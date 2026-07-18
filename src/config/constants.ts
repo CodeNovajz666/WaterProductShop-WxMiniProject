@@ -83,3 +83,40 @@ export const MOCK_COUPON_PRESETS = [
     active: false,
   },
 ]
+
+// ====== 订单配置 ======
+export const ORDER_CONFIG = {
+  ORDER_NO_PREFIX: 'YYD',           // 订单号前缀（平台标识）
+  FREE_SHIPPING_THRESHOLD: 88,      // 包邮门槛（元）
+  SHIPPING_FEE: 10,                 // 默认运费（元）
+  AUTO_CONFIRM_DAYS: 7,             // 自动确认收货天数
+  AUTO_CANCEL_MINUTES: 30,          // 待付款自动取消分钟数
+  ORDER_STATUS: {
+    PENDING_PAYMENT: 1,             // 待付款
+    PENDING_SHIPMENT: 2,            // 待发货
+    PENDING_RECEIPT: 3,             // 待收货
+    PENDING_REVIEW: 4,              // 待评价
+    COMPLETED: 5,                   // 已完成
+    CANCELLED: 9,                   // 已取消
+  } as const,
+} as const
+
+// 订单状态码 -> 状态文字
+export const ORDER_STATUS_MAP: Record<number, string> = {
+  1: '待付款',
+  2: '待发货',
+  3: '待收货',
+  4: '待评价',
+  5: '已完成',
+  9: '已取消',
+}
+
+// 订单状态颜色
+export const ORDER_STATUS_COLORS: Record<number, string> = {
+  1: '#ff6b6b',   // 待付款-红
+  2: '#ffa502',   // 待发货-橙
+  3: '#00b894',   // 待收货-绿
+  4: '#00cec9',   // 待评价-青
+  5: '#636e72',   // 已完成-灰
+  9: '#b2bec3',   // 已取消-浅灰
+}

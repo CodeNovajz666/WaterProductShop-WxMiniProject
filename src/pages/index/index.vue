@@ -57,6 +57,8 @@ const isLoading = computed(() => bannerLoading.value && ugcLoading.value && good
 const scrollIntoView = ref('')
 const pendingScrollToGoods = ref(false)
 const goodsSectionHighlight = ref(false)
+// 下拉刷新状态：必须绑定到 refresher-triggered，否则刷新不会自动停止
+const refresherTriggered = ref(false)
 
 // 执行滚动到商品区域
 const scrollToGoodsSection = () => {
@@ -109,6 +111,8 @@ onShow(() => {
 })
 
 const onRefresh = async () => {
+  // 触发下拉刷新动画
+  refresherTriggered.value = true
   bannerLoading.value = true
   ugcLoading.value = true
   try {
@@ -119,6 +123,9 @@ const onRefresh = async () => {
     ])
   } catch (error) {
     console.error('首页数据刷新失败:', error)
+  } finally {
+    // 关键：数据加载完成后关闭刷新状态，否则会一直转
+    refresherTriggered.value = false
   }
 }
 
@@ -175,6 +182,7 @@ const onGoPostUgc = () => {
   <scroll-view
     enable-back-to-top
     refresher-enabled
+    :refresher-triggered="refresherTriggered"
     @refresherrefresh="onRefresh"
     class="scroll-view"
     scroll-y

@@ -8,6 +8,7 @@ import {
   putMemberShopSelectedAPI,
 } from '@/services/shop'
 import type { ShopItem } from '@/types/shop'
+import { useMemberStore } from '@/stores'
 
 // 上次请求购物车数据的时间戳（用于 onShow 节流，避免短时间内重复请求）
 let lastShopFetchTime = 0
@@ -46,6 +47,14 @@ const saveShopData = () => {
 
 // 页面显示时重新加载购物车数据（节流：距离上次请求 < 2 秒则跳过）
 onShow(() => {
+  // 登录校验：未登录跳转登录页
+  const memberStore = useMemberStore()
+  if (!memberStore.profile) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    setTimeout(() => uni.navigateTo({ url: '/pages/login/login' }), 500)
+    return
+  }
+
   const now = Date.now()
   if (now - lastShopFetchTime < 2000) return
   lastShopFetchTime = now

@@ -9,6 +9,7 @@ import { useAddressStore } from '@/stores/modules/address'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { ref, computed } from 'vue'
 import { getSafeAreaInsets } from '@/utils/system'
+import { ORDER_CONFIG } from '@/config/constants'
 
 const safeAreaInsets = getSafeAreaInsets()
 
@@ -27,14 +28,18 @@ const buyerMessage = ref('')
 // 配送时间
 const deliveryTime = ref('不限')
 const deliveryOptions = ['不限', '工作日', '周末', '当日达']
+// 优惠码
+const couponCode = ref('')
+// 优惠金额
+const discountAmount = ref(0)
 // 提交中
 const submitting = ref(false)
 
 // 配送费
 const shippingFee = computed(() => {
   const total = totalPrice.value
-  if (total >= 88) return 0
-  return total > 0 ? 10 : 0
+  if (total >= ORDER_CONFIG.FREE_SHIPPING_THRESHOLD) return 0
+  return total > 0 ? ORDER_CONFIG.SHIPPING_FEE : 0
 })
 
 // 商品总价
@@ -139,13 +144,20 @@ const onSubmitOrder = async () => {
 
   submitting.value = true
   try {
-    await postMemberOrderAPI({
-      addressId: selectedAddress.value.id,
-      deliveryTime: deliveryTime.value,
-      buyerMessage: buyerMessage.value,
-      goodsSource: goodsSource.value,
-      items: checkoutItems.value,
-    })
+    const res = await postMemberOrderAPI(
+      {
+        addressId: selectedAddress.value.id,
+        deliveryTime: deliveryTime.value,
+        buyerMessage: buyerMessage.value,
+        goodsSource: goodsSource.value,
+        items: checkoutItems.value,
+        couponCode: couponCode.value || undefined,
+        discountAmount: discountAmount.value || undefined,
+      },
+      selectedAddress.value,
+    )
+
+    const newOrder = res.result
 
     // 清除直接购买的临时数据
     uni.removeStorageSync('buy_now_items')
@@ -166,10 +178,10 @@ const onSubmitOrder = async () => {
 
     uni.showToast({ title: '下单成功', icon: 'success', duration: 500 })
 
-    // 立即跳转，不等待清车操作完成
+    // 立即跳转到订单详情页
     setTimeout(() => {
       submitting.value = false
-      uni.redirectTo({ url: '/pages/order/order-list?type=0' })
+      uni.redirectTo({ url: `/pages/order-detail/order-detail?id=${newOrder.id}` })
     }, 500)
   } catch {
     submitting.value = false

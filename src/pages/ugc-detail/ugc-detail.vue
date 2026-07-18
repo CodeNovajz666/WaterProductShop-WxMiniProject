@@ -2,14 +2,17 @@
 import type { UgcContent } from '@/types/seafood'
 import type { UgcComment } from '@/services/seafood'
 import { getUgcContentByIdAPI, getUgcCommentsAPI, postUgcCommentAPI, postUgcLikeAPI, postUgcCollectAPI, postUgcViewAPI, deleteUgcCommentAPI } from '@/services/seafood'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { ref, reactive } from 'vue'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import { getSafeAreaInsets } from '@/utils/system'
 import { COUPON_CODES, ANONYMOUS_USERNAME } from '@/config/constants'
 import { useMemberStore } from '@/stores'
 
 const safeAreaInsets = getSafeAreaInsets()
 const memberStore = useMemberStore()
+
+// 登录状态（动态计算，登录/登出后自动更新）
+const isLoggedIn = computed(() => !!memberStore.profile)
 
 const ugcId = ref('')
 const ugcItem = ref<UgcContent>()
@@ -22,6 +25,8 @@ const isCollected = ref(false)
 const viewCount = ref(0)
 // 加载状态
 const loading = ref(false)
+const commentsLoading = ref(false)
+const submitting = ref(false)
 // 视频播放状态
 const videoPlaying = ref(false)
 // 微信朋友圈分享需要基础库 2.11.3+
@@ -30,6 +35,59 @@ const canShareTimeline = ref(true)
 // 企业方提供的分销分享码，对应 couponCodes 中的 "001"（95折优惠）
 // 分享者分享后，接收者打开链接即可自动获得此优惠码
 const SHARE_COUPON_CODE = COUPON_CODES.SHARE
+
+// 格式化评论时间（动态化：刚刚 / X分钟前 / X小时前 / X天前 / 日期）
+const formatCommentTime = (time: string): string => {
+  if (!time) return ''
+  // 兼容"刚刚"等非标准时间
+  if (time === '刚刚' || !time.includes('-') && !time.includes(':') && !time.includes('T')) {
+    return time
+  }
+  const d = new Date(time)
+  if (isNaN(d.getTime())) return time
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  if (diff < 60 * 1000) return '刚刚'
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`
+  if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / 86400000)}天前`
+  return d.toLocaleDateString('zh-CN')
+}
+
+// 登录拦截：未登录时引导去登录页
+const checkLogin = (): boolean => {
+  if (!isLoggedIn.value) {
+    uni.showModal({
+      title: '需要登录',
+      content: '请先登录后再进行此操作',
+      confirmText: '去登录',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({ url: '/pages/login/login' })
+        }
+      },
+    })
+    return false
+  }
+  return true
+}
+
+// 加载评论列表
+const loadComments = async () => {
+  commentsLoading.value = true
+  try {
+    const res = await getUgcCommentsAPI(ugcId.value)
+    comments.value = res.result
+    // 同步评论数
+    if (ugcItem.value) {
+      ugcItem.value.comments = res.result.length
+    }
+  } catch {
+    uni.showToast({ icon: 'none', title: '评论加载失败' })
+  } finally {
+    commentsLoading.value = false
+  }
+}
 
 onLoad(async (options) => {
   ugcId.value = options?.id || ''
@@ -51,14 +109,8 @@ onLoad(async (options) => {
     viewCount.value = res.result.views
   })
 
-  // 评论列表异步加载，不阻塞详情渲染
-  getUgcCommentsAPI(ugcId.value).then(res => {
-    comments.value = res.result
-    // 同步评论数
-    if (ugcItem.value) {
-      ugcItem.value.comments = res.result.length
-    }
-  })
+  // 评论列表异步加载
+  loadComments()
 
   if (options?.couponCode) {
     receivedCoupon.value = options.couponCode
@@ -71,7 +123,23 @@ onLoad(async (options) => {
   }
 })
 
+// 页面显示时刷新登录状态和评论（用户从登录页返回后能立即看到变化）
+onShow(() => {
+  if (ugcId.value && ugcItem.value) {
+    // 重新加载详情，同步点赞/收藏状态（登录后状态可能变化）
+    getUgcContentByIdAPI(ugcId.value).then(res => {
+      if (res.result) {
+        isLiked.value = res.result._liked || false
+        isCollected.value = res.result._collected || false
+      }
+    })
+    // 重新加载评论列表（登录后可以看到自己之前的评论）
+    loadComments()
+  }
+})
+
 const toggleLike = async () => {
+  if (!checkLogin()) return
   if (!ugcItem.value) return
   try {
     const res = await postUgcLikeAPI(ugcId.value)
@@ -88,6 +156,7 @@ const toggleLike = async () => {
 }
 
 const toggleCollect = async () => {
+  if (!checkLogin()) return
   try {
     const res = await postUgcCollectAPI(ugcId.value)
     isCollected.value = res.result.collected
@@ -102,35 +171,58 @@ const toggleCollect = async () => {
 }
 
 const submitComment = async () => {
+  // 登录校验
+  if (!checkLogin()) return
+
   const content = commentInput.value.trim()
   if (!content) {
     uni.showToast({ title: '请输入评论内容', icon: 'none' })
     return
   }
+  if (content.length > 200) {
+    uni.showToast({ title: '评论内容不能超过200字', icon: 'none' })
+    return
+  }
 
+  submitting.value = true
   try {
     const res = await postUgcCommentAPI(ugcId.value, { content })
-    comments.value.push(res.result)
-    // 用实际评论列表长度更新评论数
-    if (ugcItem.value) {
-      ugcItem.value.comments = comments.value.length
+    if (res.code === '0') {
+      // 插入到列表顶部（最新评论在前）
+      comments.value.unshift(res.result)
+      // 更新评论数
+      if (ugcItem.value) {
+        ugcItem.value.comments = comments.value.length
+      }
+      commentInput.value = ''
+      uni.showToast({ title: '评论成功', icon: 'success' })
+    } else {
+      uni.showToast({ title: res.msg || '评论失败', icon: 'none' })
     }
   } catch {
-    // 前端降级
-    comments.value.push({
+    // 前端降级：直接构造评论对象
+    comments.value.unshift({
       id: Date.now().toString(),
       ugcId: ugcId.value,
-      userName: memberStore?.profile?.nickname || ANONYMOUS_USERNAME,
+      userId: memberStore.profile?.id ? String(memberStore.profile.id) : undefined,
+      userName: memberStore.profile?.nickname || ANONYMOUS_USERNAME,
+      avatar: memberStore.profile?.avatar,
       content: content,
-      createdAt: '刚刚'
+      createdAt: new Date().toISOString(),
     })
     if (ugcItem.value) {
       ugcItem.value.comments = comments.value.length
     }
+    commentInput.value = ''
+    uni.showToast({ title: '评论成功', icon: 'success' })
+  } finally {
+    submitting.value = false
   }
+}
 
-  commentInput.value = ''
-  uni.showToast({ title: '评论成功', icon: 'success' })
+// 跳转登录页
+const goLogin = () => {
+  uni.navigateTo({ url: '/pages/login/login' })
 }
 
 onShareAppMessage(() => {
@@ -293,37 +385,73 @@ const onDeleteComment = (commentId: string) => {
           <view class="comments-header">
             <text class="comments-title">评论 ({{ ugcItem?.comments }})</text>
           </view>
-          <view class="comments-list">
-            <view v-for="comment in comments" :key="comment.id" class="comment-item">
-              <view class="comment-avatar">
-                <text class="avatar-text">{{ comment.userName.charAt(0) }}</text>
-              </view>
-              <view class="comment-content">
-                <view class="comment-header">
-                  <text class="comment-user">{{ comment.userName }}</text>
-                  <text class="comment-time">{{ comment.createdAt }}</text>
+
+          <!-- 评论加载中 -->
+          <view v-if="commentsLoading" class="comments-loading">
+            <text>评论加载中...</text>
+          </view>
+
+          <!-- 评论列表 -->
+          <template v-else>
+            <view v-if="comments.length > 0" class="comments-list">
+              <view v-for="comment in comments" :key="comment.id" class="comment-item">
+                <image
+                  v-if="comment.avatar"
+                  class="comment-avatar-img"
+                  :src="comment.avatar"
+                  mode="aspectFill"
+                />
+                <view v-else class="comment-avatar">
+                  <text class="avatar-text">{{ comment.userName.charAt(0) }}</text>
                 </view>
-                <text class="comment-text">{{ comment.content }}</text>
-              </view>
-              <view
-                v-if="comment.userId && !comment.id.startsWith('mock_')"
-                class="comment-delete"
-                @tap="onDeleteComment(comment.id)"
-              >
-                <text>删除</text>
+                <view class="comment-content">
+                  <view class="comment-header">
+                    <text class="comment-user">{{ comment.userName }}</text>
+                    <text class="comment-time">{{ formatCommentTime(comment.createdAt) }}</text>
+                  </view>
+                  <text class="comment-text">{{ comment.content }}</text>
+                </view>
+                <view
+                  v-if="comment.userId && !comment.id.startsWith('mock_')"
+                  class="comment-delete"
+                  @tap="onDeleteComment(comment.id)"
+                >
+                  <text>删除</text>
+                </view>
               </view>
             </view>
-          </view>
-          <view class="comment-input-box">
+
+            <!-- 空评论状态 -->
+            <view v-else class="comments-empty">
+              <text class="empty-icon">💬</text>
+              <text class="empty-text">暂无评论，快来发表第一条评论吧</text>
+            </view>
+          </template>
+
+          <!-- 评论输入区（根据登录状态动态显示） -->
+          <view v-if="isLoggedIn" class="comment-input-box">
             <input
               v-model="commentInput"
               class="comment-input"
               placeholder="发表你的评论..."
+              :maxlength="200"
+              :disabled="submitting"
               @confirm="submitComment"
             />
-            <view class="comment-submit" @tap="submitComment">
-              <text>发送</text>
+            <view
+              class="comment-submit"
+              :class="{ disabled: submitting || !commentInput.trim() }"
+              @tap="submitComment"
+            >
+              <text>{{ submitting ? '发送中' : '发送' }}</text>
             </view>
+          </view>
+
+          <!-- 未登录提示 -->
+          <view v-else class="comment-login-prompt" @tap="goLogin">
+            <text class="login-prompt-icon">🔐</text>
+            <text class="login-prompt-text">登录后发表评论</text>
+            <text class="login-prompt-arrow">›</text>
           </view>
         </view>
 
@@ -666,10 +794,75 @@ page {
   flex-shrink: 0;
 }
 
+.comment-avatar-img {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .avatar-text {
   font-size: 28rpx;
   color: #fff;
   font-weight: bold;
+}
+
+.comments-loading {
+  text-align: center;
+  padding: 40rpx 0;
+
+  text {
+    font-size: 26rpx;
+    color: #999;
+  }
+}
+
+.comments-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+
+  .empty-icon {
+    font-size: 60rpx;
+    margin-bottom: 12rpx;
+  }
+
+  .empty-text {
+    font-size: 26rpx;
+    color: #999;
+  }
+}
+
+.comment-login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 20rpx;
+  padding: 24rpx;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
+  border-radius: 40rpx;
+  border: 1rpx dashed #0066cc;
+
+  &:active {
+    opacity: 0.85;
+  }
+
+  .login-prompt-icon {
+    font-size: 32rpx;
+  }
+
+  .login-prompt-text {
+    font-size: 28rpx;
+    color: #0066cc;
+    font-weight: 500;
+  }
+
+  .login-prompt-arrow {
+    font-size: 32rpx;
+    color: #0066cc;
+  }
 }
 
 .comment-content {
@@ -730,6 +923,14 @@ page {
     font-size: 28rpx;
     font-weight: bold;
     color: #fff;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+  }
+
+  &:active:not(.disabled) {
+    transform: scale(0.97);
   }
 }
 
